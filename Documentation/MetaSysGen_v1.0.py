@@ -908,8 +908,8 @@ class MetaSysGen:
 				self.PrintData(Data_obj,F,NameSize)
 
 		F.close()
-
-		return_code = subprocess.call("R -e \'library(\"rmarkdown\");library(\"knitr\");rmarkdown::render(\"Test.md\")\'", shell=True)	
+		
+		return_code = subprocess.call("R -e \'library(\"rmarkdown\");library(\"knitr\");rmarkdown::render(\""+Output+"\")\'", shell=True)	
 		
 
 	def DataIDDisplay(self,ID_Balise,Name_Balise,Group_Balise=None):	
