@@ -1015,7 +1015,7 @@ output:
 
 Meta.AddYAML(YAML)
 
-Meta.GenerateMarkdown("Documentation.md",DataDisplay = "Name",DrawparamFile = "DrawParamSimple.txt")
+Meta.GenerateMarkdown("README.md",DataDisplay = "Name",DrawparamFile = "DrawParamSimple.txt")
 #Meta.GenerateMarkdown("Test.md",DataDisplay = "Name",DrawparamFile = "DrawParamNew.txt")
 
 print("Display ID")

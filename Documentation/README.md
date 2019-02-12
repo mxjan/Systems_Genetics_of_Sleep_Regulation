@@ -17,7 +17,7 @@ output:
 
 #### Authors
 
-[Maxime Jan](Documentation.html#maxime-jan); [Ioannis Xenarios](Documentation.html#ioannis-xenarios); [Paul Franken](Documentation.html#paul-franken); [Shanaz Diessler](Documentation.html#shanaz-diessler)
+[Maxime Jan](README.html#maxime-jan); [Ioannis Xenarios](README.html#ioannis-xenarios); [Paul Franken](README.html#paul-franken); [Shanaz Diessler](README.html#shanaz-diessler)
 
 #### Link
 
@@ -74,9 +74,9 @@ Adress: shanaz.diessler@gmail.com
 #### Description
 
  
-The file is generated using [Transcript normalization](Documentation.html#counts-normalization), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Transcript normalization](README.html#counts-normalization), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Liver](Documentation.html#liver) during the [Control](Documentation.html#control). Counts are in Count Per Million [CPM]
+The tissu come from the [Liver](README.html#liver) during the [Control](README.html#control). Counts are in Count Per Million [CPM]
 
 
 #### Path
@@ -88,9 +88,9 @@ The tissu come from the [Liver](Documentation.html#liver) during the [Control](D
 #### Description
 
  
-The file is generated using [Transcript normalization](Documentation.html#counts-normalization), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Transcript normalization](README.html#counts-normalization), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Cortex](Documentation.html#cortex) during the [sleep deprivation](Documentation.html#sleep-deprived). Counts are in Count Per Million [CPM]
+The tissu come from the [Cortex](README.html#cortex) during the [sleep deprivation](README.html#sleep-deprived). Counts are in Count Per Million [CPM]
 
 
 #### Path
@@ -102,9 +102,9 @@ The tissu come from the [Cortex](Documentation.html#cortex) during the [sleep de
 #### Description
 
  
-The file is generated using [Transcript normalization](Documentation.html#counts-normalization), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Transcript normalization](README.html#counts-normalization), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Cortex](Documentation.html#cortex) during the [Control](Documentation.html#control). Counts are in Count Per Million [CPM]
+The tissu come from the [Cortex](README.html#cortex) during the [Control](README.html#control). Counts are in Count Per Million [CPM]
 
 
 #### Path
@@ -116,9 +116,9 @@ The tissu come from the [Cortex](Documentation.html#cortex) during the [Control]
 #### Description
 
  
-The file is generated using [Transcript normalization](Documentation.html#counts-normalization), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Transcript normalization](README.html#counts-normalization), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Liver](Documentation.html#liver) during the [sleep deprivation](Documentation.html#sleep-deprived). Counts are in Count Per Million [CPM]
+The tissu come from the [Liver](README.html#liver) during the [sleep deprivation](README.html#sleep-deprived). Counts are in Count Per Million [CPM]
 
 
 #### Path
@@ -131,9 +131,9 @@ The tissu come from the [Liver](Documentation.html#liver) during the [sleep depr
 
 #### Description
 
-The file is generated using [Htseq-count](Documentation.html#htseq-count-union), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Htseq-count](README.html#htseq-count-union), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Liver](Documentation.html#liver) during the [sleep deprivation or sd](Documentation.html#sleep-deprived) and [Control or nsd](Documentation.html#control).
+The tissu come from the [Liver](README.html#liver) during the [sleep deprivation or sd](README.html#sleep-deprived) and [Control or nsd](README.html#control).
 
 
 #### Path
@@ -144,9 +144,9 @@ The tissu come from the [Liver](Documentation.html#liver) during the [sleep depr
 
 #### Description
 
-The file is generated using [Htseq-count](Documentation.html#htseq-count-union), each row is a [Gene](Documentation.html#refseq-dataset-2014) and each column is a [BXD line](Documentation.html#molecular-data).
+The file is generated using [Htseq-count](README.html#htseq-count-union), each row is a [Gene](README.html#refseq-dataset-2014) and each column is a [BXD line](README.html#molecular-data).
  
-The tissu come from the [Cortex](Documentation.html#cortex) during the [sleep deprivation or sd](Documentation.html#sleep-deprived) and [Control or nsd](Documentation.html#control).
+The tissu come from the [Cortex](README.html#cortex) during the [sleep deprivation or sd](README.html#sleep-deprived) and [Control or nsd](README.html#control).
 
 
 #### Path
@@ -159,7 +159,7 @@ The tissu come from the [Cortex](Documentation.html#cortex) during the [sleep de
 
 #### Description
 
-Fastq files from each [BXD lines](Documentation.html#bxd-mouse) generated using Illumina RNA-seq
+Fastq files from each [BXD lines](README.html#bxd-mouse) generated using Illumina RNA-seq
 
 
 #### Path
@@ -168,13 +168,13 @@ Archived
 
 #### Input
 
-[BXD molecular experiment](Documentation.html#molecular-data)
+[BXD molecular experiment](README.html#molecular-data)
 
 ### Fastq Liver NSD
 
 #### Description
 
-Fastq files from each [BXD lines](Documentation.html#bxd-mouse) generated using Illumina RNA-seq
+Fastq files from each [BXD lines](README.html#bxd-mouse) generated using Illumina RNA-seq
 
 
 #### Path
@@ -183,13 +183,13 @@ Archived
 
 #### Input
 
-[BXD molecular experiment](Documentation.html#molecular-data)
+[BXD molecular experiment](README.html#molecular-data)
 
 ### Fastq Cortex SD
 
 #### Description
 
-Fastq files from each [BXD lines](Documentation.html#bxd-mouse) generated using Illumina RNA-seq
+Fastq files from each [BXD lines](README.html#bxd-mouse) generated using Illumina RNA-seq
 
 
 #### Path
@@ -198,13 +198,13 @@ Archived
 
 #### Input
 
-[BXD molecular experiment](Documentation.html#molecular-data)
+[BXD molecular experiment](README.html#molecular-data)
 
 ### Fastq Cortex NSD
 
 #### Description
 
-Fastq files from each [BXD lines](Documentation.html#bxd-mouse) generated using Illumina RNA-seq
+Fastq files from each [BXD lines](README.html#bxd-mouse) generated using Illumina RNA-seq
 
 
 #### Path
@@ -213,7 +213,7 @@ Archived
 
 #### Input
 
-[BXD molecular experiment](Documentation.html#molecular-data)
+[BXD molecular experiment](README.html#molecular-data)
 
 ## MetaboFiles
 
@@ -221,9 +221,9 @@ Archived
 
 #### Description
 
-Metabolite level for each [BXD lines](Documentation.html#bxd-mouse)
+Metabolite level for each [BXD lines](README.html#bxd-mouse)
  
-* This file contain Metabolite data for New strains and parental and F1 during [Control](Documentation.html#control) and [Sleep deprivation](Documentation.html#sleep-deprived)
+* This file contain Metabolite data for New strains and parental and F1 during [Control](README.html#control) and [Sleep deprivation](README.html#sleep-deprived)
  
 * A file containing also old strains is located: /home/mjan/PhD/Rdata/Metabolites_BXD_alldata.txt
  
@@ -240,7 +240,7 @@ Metabolite level for each [BXD lines](Documentation.html#bxd-mouse)
 
 #### Description
 
-Alignement File [Bam] for [Cortex](Documentation.html#cortex) during [Control](Documentation.html#control)
+Alignement File [Bam] for [Cortex](README.html#cortex) during [Control](README.html#control)
 
 
 #### Path
@@ -253,9 +253,9 @@ frt.el.vital-it.ch:/scratch/cluster/monthly/mjan
 
 #### Description
 
-eQTL for [Cortex](Documentation.html#cortex) during [Control](Documentation.html#control)
-Each row is a [Gene](Documentation.html#refseq-dataset-2014) , first column is the FDR adjusted pvalue using Rpackage qvalue
-the last column is a [genetic marker](Documentation.html#bxd-genotypes)
+eQTL for [Cortex](README.html#cortex) during [Control](README.html#control)
+Each row is a [Gene](README.html#refseq-dataset-2014) , first column is the FDR adjusted pvalue using Rpackage qvalue
+the last column is a [genetic marker](README.html#bxd-genotypes)
 
 
 #### Path
@@ -275,45 +275,45 @@ the last column is a [genetic marker](Documentation.html#bxd-genotypes)
 #### Description
 
 Spectral data used for manual annotation and semi-automatic learning approach.
-The files are transforme using Fast Fourier transform (FFT). Ask [Yann Emmenegger](Documentation.html#yann-emmenegger) for the processing details.
+The files are transforme using Fast Fourier transform (FFT). Ask [Yann Emmenegger](README.html#yann-emmenegger) for the processing details.
 
 
 #### Path
 
-Archived by [Paul Franken](Documentation.html#paul-franken)
+Archived by [Paul Franken](README.html#paul-franken)
 
 ## Manual Annotation
 
 #### Description
 
-manually annotated data on the [3rd day of recording (R1)](Documentation.html#bxd-behavioraleeg). Performed by [Yann Emmenegger](Documentation.html#yann-emmenegger). Manual annotation is performed on each mouse of each [BXD lines](Documentation.html#bxd-mouse).
+manually annotated data on the [3rd day of recording (R1)](README.html#bxd-behavioraleeg). Performed by [Yann Emmenegger](README.html#yann-emmenegger). Manual annotation is performed on each mouse of each [BXD lines](README.html#bxd-mouse).
 
 
 #### Path
 
-Archived by [Paul Franken](Documentation.html#paul-franken)
+Archived by [Paul Franken](README.html#paul-franken)
 
 ## PIR motion sensor data
 
 #### Description
 
-PIR motion sensor data recording activity for each mouse of each [BXD lines](Documentation.html#bxd-mouse)
+PIR motion sensor data recording activity for each mouse of each [BXD lines](README.html#bxd-mouse)
 
 
 #### Path
 
-Archived by [Paul Franken](Documentation.html#paul-franken)
+Archived by [Paul Franken](README.html#paul-franken)
 
 ## Predicted EEG State
 
 #### Description
 
-Predicted state for each [BXD](Documentation.html#bxd-mouse). Prediction for 4 days every 4 seconds (86400 epochs). State are wake [w], NREM sleep [n], REM sleep [r] or artefact value of wake [1], NREM [2] or REM [3]. The 3rd day is replaced by the [manual annotation](Documentation.html#manual-annotation)
+Predicted state for each [BXD](README.html#bxd-mouse). Prediction for 4 days every 4 seconds (86400 epochs). State are wake [w], NREM sleep [n], REM sleep [r] or artefact value of wake [1], NREM [2] or REM [3]. The 3rd day is replaced by the [manual annotation](README.html#manual-annotation)
 
 
 #### Path
 
-Archived by [Paul Franken](Documentation.html#paul-franken)
+Archived by [Paul Franken](README.html#paul-franken)
 
 ## EEG and Behavioral Phenotypes
 
@@ -328,7 +328,7 @@ Phenotypes contain:
  
 The directory "Phenotypes/" contains the following information:
  
-* [line (BXD lines)](Documentation.html#bxd-mouse)
+* [line (BXD lines)](README.html#bxd-mouse)
 * mouseID (in format "lines"_"mouseID")
 * room (room used for recording)
 * rec (recording time period)
@@ -349,7 +349,7 @@ A mean value per lines was computed and stored into the following files:
 
 #### Description
 
-Categories for each sleep phenotypes. The categories are related to EEG/State or Activity. The file contain also subcategories and condition related to each phenotypes (can be [bsl](Documentation.html#control), [rec: after sleep deprivation](Documentation.html#sleep-deprived) or $< SD: during sleep deprivation [Sd])	
+Categories for each sleep phenotypes. The categories are related to EEG/State or Activity. The file contain also subcategories and condition related to each phenotypes (can be [bsl](README.html#control), [rec: after sleep deprivation](README.html#sleep-deprived) or $< SD: during sleep deprivation [Sd])	
 
 
 #### Path
@@ -371,7 +371,7 @@ Archived
 
 #### Input
 
-[BXD mice](Documentation.html#bxd-mouse)
+[BXD mice](README.html#bxd-mouse)
 
 #### Link
 
@@ -392,7 +392,7 @@ Archived
 
 #### Input
 
-[BXD mice](Documentation.html#bxd-mouse)
+[BXD mice](README.html#bxd-mouse)
 
 #### Link
 
@@ -402,7 +402,7 @@ Bernard Thorens group: https://www.unil.ch/cig/en/home/menuinst/research/researc
 
 #### Description
 
-Variant calling file generated with [GATK](Documentation.html#variant-calling-with-gatk)
+Variant calling file generated with [GATK](README.html#variant-calling-with-gatk)
 
 
 #### Path
@@ -508,15 +508,15 @@ Mus_musculus.NCBIM37.67.dna.top.level.fa
 
 #### Input
 
-[spectral files](Documentation.html#spectral-data); [PIR data](Documentation.html#pir-motion-sensor-data); [Semi-Automatic Annotation](Documentation.html#predicted-eeg-state)
+[spectral files](README.html#spectral-data); [PIR data](README.html#pir-motion-sensor-data); [Semi-Automatic Annotation](README.html#predicted-eeg-state)
 
 #### Output
 
-[341 Phenotype Data](Documentation.html#eeg-and-behavioral-phenotypes)
+[341 Phenotype Data](README.html#eeg-and-behavioral-phenotypes)
 
 #### Authors
 
-[Paul Franken](Documentation.html#paul-franken)
+[Paul Franken](README.html#paul-franken)
 
 #### Link
 
@@ -544,11 +544,11 @@ Phenotypes full description: Phenotypes.docx
 
 #### Input
 
-[Manually annotated data](Documentation.html#manual-annotation); [Spectral data](Documentation.html#spectral-data)
+[Manually annotated data](README.html#manual-annotation); [Spectral data](README.html#spectral-data)
 
 #### Output
 
-[Predicted Files](Documentation.html#predicted-eeg-state)
+[Predicted Files](README.html#predicted-eeg-state)
 
 #### Version
 
@@ -556,13 +556,13 @@ Phenotypes full description: Phenotypes.docx
 
 #### Authors
 
-[Nicolas Guex](Documentation.html#nicolas-guex); [Maxime Jan](Documentation.html#maxime-jan)
+[Nicolas Guex](README.html#nicolas-guex); [Maxime Jan](README.html#maxime-jan)
 
 ## fastq to bam files
 
 #### Description
 
-transformation of fastq files into bam files. Fastq files are filtered to remove low quality reads. STAR is used for alignment with the [NCBI mm9](Documentation.html#reference-genome) reference genome. Bam are then processed using samtools, piccard and GATK for indexing, add read group, mark duplicates, realign indel, and base recalibration.
+transformation of fastq files into bam files. Fastq files are filtered to remove low quality reads. STAR is used for alignment with the [NCBI mm9](README.html#reference-genome) reference genome. Bam are then processed using samtools, piccard and GATK for indexing, add read group, mark duplicates, realign indel, and base recalibration.
 
 
 #### Path
@@ -571,11 +571,11 @@ transformation of fastq files into bam files. Fastq files are filtered to remove
 
 #### Input
 
-[Fastq Files](Documentation.html#fastq-files)
+[Fastq Files](README.html#fastq-files)
 
 #### Output
 
-[Bam Files](Documentation.html#bam-files)
+[Bam Files](README.html#bam-files)
 
 #### CS
 
@@ -599,11 +599,11 @@ Some file needed to be reheader (ReheaderFiles.py) and modify chromosome name (c
 
 #### Input
 
-[Bam files](Documentation.html#bam-files); [Bam files hypothalamus](Documentation.html#hypothalamus-bam-files); [Bam files BrainStem](Documentation.html#brain-stem-bam-files)
+[Bam files](README.html#bam-files); [Bam files hypothalamus](README.html#hypothalamus-bam-files); [Bam files BrainStem](README.html#brain-stem-bam-files)
 
 #### Output
 
-[VCF file](Documentation.html#bxd-variant-[vcf])
+[VCF file](README.html#bxd-variant-[vcf])
 
 #### CS
 
@@ -632,11 +632,11 @@ unknown 'U'
 
 #### Input
 
-[VCF file](Documentation.html#bxd-variant-[vcf]); [GeneNetwork Genotype](Documentation.html#genenetwork-genotypes)
+[VCF file](README.html#bxd-variant-[vcf]); [GeneNetwork Genotype](README.html#genenetwork-genotypes)
 
 #### Output
 
-[BXD Genotypes](Documentation.html#bxd-genotypes)
+[BXD Genotypes](README.html#bxd-genotypes)
 
 #### CS
 
@@ -657,11 +657,11 @@ Generation of cis-eQTL files using FastQTL, the complete workflow is empacked us
 
 #### Input
 
-[Normalized counts](Documentation.html#normalized-counts); [Genotypes](Documentation.html#bxd-genotypes)
+[Normalized counts](README.html#normalized-counts); [Genotypes](README.html#bxd-genotypes)
 
 #### Output
 
-[eQTL files](Documentation.html#eqtlfiles)
+[eQTL files](README.html#eqtlfiles)
 
 #### CS
 
@@ -687,7 +687,7 @@ FastQTL: http://fastqtl.sourceforge.net/
  
 Generation of cis-eQTL files using FastQTL, the complete workflow is empacked using the Rmarkdown cis_FC_eQTL_Analysis.Rmd.	
  
-Same pipeline as [standard cis-eQTL](Documentation.html#eqtl-dectection-with-fastqtl) but using fold-change
+Same pipeline as [standard cis-eQTL](README.html#eqtl-dectection-with-fastqtl) but using fold-change
 
 
 #### Path
@@ -696,11 +696,11 @@ Same pipeline as [standard cis-eQTL](Documentation.html#eqtl-dectection-with-fas
 
 #### Input
 
-[Normalized counts](Documentation.html#normalized-counts); [Genotypes](Documentation.html#bxd-genotypes)
+[Normalized counts](README.html#normalized-counts); [Genotypes](README.html#bxd-genotypes)
 
 #### Output
 
-[eQTL files](Documentation.html#eqtlfiles)
+[eQTL files](README.html#eqtlfiles)
 
 #### CS
 
@@ -735,11 +735,11 @@ Script used for transcript normalization using edgeR
 
 #### Input
 
-[Raw counts](Documentation.html#transcript-raw-counts)
+[Raw counts](README.html#transcript-raw-counts)
 
 #### Output
 
-[Normalized counts](Documentation.html#normalized-counts)
+[Normalized counts](README.html#normalized-counts)
 
 ## htseq-count union
 
@@ -760,11 +760,11 @@ Script take as input a list of the processed bam file
 
 #### Input
 
-[Bam Files](Documentation.html#bam-files); [RefSeq file](Documentation.html#refseq-dataset-2014)
+[Bam Files](README.html#bam-files); [RefSeq file](README.html#refseq-dataset-2014)
 
 #### Output
 
-[Raw counts](Documentation.html#transcript-raw-counts)
+[Raw counts](README.html#transcript-raw-counts)
 
 #### Arguments
 
@@ -795,11 +795,11 @@ A Rscript to generate a partial correlation matrix.
 
 #### Input
 
-[Expression Data](Documentation.html#normalized-counts); [cis-eQTL File](Documentation.html#eqtlfiles)
+[Expression Data](README.html#normalized-counts); [cis-eQTL File](README.html#eqtlfiles)
 
 #### Output
 
-[Partial correlation Matrix](Documentation.html#partial-correlation-matrix)
+[Partial correlation Matrix](README.html#partial-correlation-matrix)
 
 #### Version
 
@@ -811,7 +811,7 @@ A Rscript to generate a partial correlation matrix.
 
 #### Description
 
-Used to generate [Molecular data](Documentation.html#molecular-data) and [Behavioral data](Documentation.html#bxd-behavioraleeg)   
+Used to generate [Molecular data](README.html#molecular-data) and [Behavioral data](README.html#bxd-behavioraleeg)   
 
 
 # Tissu
@@ -843,7 +843,7 @@ Blood Metabolism quantification
 
 #### Description
 
-Control sample from the [BXD](Documentation.html#bxd-mouse) Experiments
+Control sample from the [BXD](README.html#bxd-mouse) Experiments
 
 
 ## Sleep deprived
@@ -860,7 +860,7 @@ Control sample from the [BXD](Documentation.html#bxd-mouse) Experiments
 #### Description
 
  	 
-A limma pipeline that test if a gene fold-change after [sleep deprivation](Documentation.html#sleep-deprived) that was map locally (using [cis-eQTL fold-change](Documentation.html#eqtl-detection-for-fold-change-after-sd)) 
+A limma pipeline that test if a gene fold-change after [sleep deprivation](README.html#sleep-deprived) that was map locally (using [cis-eQTL fold-change](README.html#eqtl-detection-for-fold-change-after-sd)) 
 has a significant interaction term.
  		
 The pipeline use the following linear model: Gene Level = Genotype * Condition
@@ -872,18 +872,18 @@ The pipeline use the following linear model: Gene Level = Genotype * Condition
 
 #### Input
 
-[Raw counts](Documentation.html#transcript-raw-counts); [Genotypes](Documentation.html#bxd-genotypes); $<cis-eQTL fold-change [FC_FastQTL] >
+[Raw counts](README.html#transcript-raw-counts); [Genotypes](README.html#bxd-genotypes); $<cis-eQTL fold-change [FC_FastQTL] >
 
 #### Output
 
-[Genotype SD significant interaction](Documentation.html#significant-interaction-genotype-x-sd-for-gene)
+[Genotype SD significant interaction](README.html#significant-interaction-genotype-x-sd-for-gene)
 
 ## Genotype-SD interaction for metabolite
 
 #### Description
 
  
-An ANOVA pipeline that test if a metabolite fold-change after [sleep deprivation](Documentation.html#sleep-deprived) that was map locally (using mQTL) 
+An ANOVA pipeline that test if a metabolite fold-change after [sleep deprivation](README.html#sleep-deprived) that was map locally (using mQTL) 
 has a significant interaction term.
   
 As we have independent measurement between condition and multiple value for each BXD lines, we use the following linear model
@@ -897,18 +897,18 @@ The pipeline use the following nested linear model: Metabolite Level = Genotype/
 
 #### Input
 
-[Metabolite level](Documentation.html#metabolite-level); [Genotypes](Documentation.html#bxd-genotypes); mQTL
+[Metabolite level](README.html#metabolite-level); [Genotypes](README.html#bxd-genotypes); mQTL
 
 #### Output
 
-[Genotype SD significant interaction](Documentation.html#significant-interaction-genotype-x-sd-for-metabolite)
+[Genotype SD significant interaction](README.html#significant-interaction-genotype-x-sd-for-metabolite)
 
 ## Genotype-SD interaction for phenotypes
 
 #### Description
 
  
-A mixed model pipeline that test if a phenotypes fold-change after [sleep deprivation](Documentation.html#sleep-deprived) that was map locally (using ph-QTL) 
+A mixed model pipeline that test if a phenotypes fold-change after [sleep deprivation](README.html#sleep-deprived) that was map locally (using ph-QTL) 
 has a significant interaction term.
 As we have dependent measurement between condition and multiple value for each BXD lines, we use the following linear mixed model (we didn't use lines as fixed effect to reduce
 the number of parameter used in our model)
@@ -924,11 +924,11 @@ for different mouse.
 
 #### Input
 
-[Phenotype data](Documentation.html#eeg-and-behavioral-phenotypes); [Genotypes](Documentation.html#bxd-genotypes); ph-QTL
+[Phenotype data](README.html#eeg-and-behavioral-phenotypes); [Genotypes](README.html#bxd-genotypes); ph-QTL
 
 #### Output
 
-[Genotype SD significant interaction](Documentation.html#significant-interaction-genotype-x-sd-for-phenotypes)
+[Genotype SD significant interaction](README.html#significant-interaction-genotype-x-sd-for-phenotypes)
 
 ## Heritability calculation
 
@@ -943,7 +943,7 @@ Rmarkdown for heritability calculation, details in the Rmarkdown
 
 #### Input
 
-[Sleep phenotypes](Documentation.html#eeg-and-behavioral-phenotypes); [Sleep categories](Documentation.html#phenotypes-categories)
+[Sleep phenotypes](README.html#eeg-and-behavioral-phenotypes); [Sleep categories](README.html#phenotypes-categories)
 
 ## Metabolite Ctl vs SD
 
@@ -958,7 +958,7 @@ Rmarkdown for differential metabolite level, details in the Rmarkdown
 
 #### Input
 
-[Metabolite level](Documentation.html#metabolite-level)
+[Metabolite level](README.html#metabolite-level)
 
 # Experiment
 
@@ -973,11 +973,11 @@ BXD cohort for molecular quantification after sleep deprivation
 
 #### Input
 
-[BXD](Documentation.html#bxd-mouse); [Sleep Deprivation](Documentation.html#sleep-deprived); [Cortex](Documentation.html#cortex); [Liver](Documentation.html#liver); [Blood](Documentation.html#blood-metabolism)
+[BXD](README.html#bxd-mouse); [Sleep Deprivation](README.html#sleep-deprived); [Cortex](README.html#cortex); [Liver](README.html#liver); [Blood](README.html#blood-metabolism)
 
 #### Output
 
-[fastq files Cortex SD](Documentation.html#fastq-cortex-sd); [fastq files Liver SD](Documentation.html#fastq-liver-sd); [Metabolite level](Documentation.html#metabolite-level)
+[fastq files Cortex SD](README.html#fastq-cortex-sd); [fastq files Liver SD](README.html#fastq-liver-sd); [Metabolite level](README.html#metabolite-level)
 
 ### BXD Molecular NSD
 
@@ -988,26 +988,26 @@ BXD cohort for molecular quantification after sleep deprivation
 
 #### Input
 
-[BXD](Documentation.html#bxd-mouse); [Control](Documentation.html#control); [Cortex](Documentation.html#cortex); [Liver](Documentation.html#liver); [Blood](Documentation.html#blood-metabolism)
+[BXD](README.html#bxd-mouse); [Control](README.html#control); [Cortex](README.html#cortex); [Liver](README.html#liver); [Blood](README.html#blood-metabolism)
 
 #### Output
 
-[fastq files Liver Control](Documentation.html#fastq-liver-nsd); [fastq files Cortex Control](Documentation.html#fastq-cortex-nsd); [Metabolite level](Documentation.html#metabolite-level)
+[fastq files Liver Control](README.html#fastq-liver-nsd); [fastq files Cortex Control](README.html#fastq-cortex-nsd); [Metabolite level](README.html#metabolite-level)
 
 ## BXD Behavioral/EEG
 
 #### Description
 
 Generation of data for EEG and behavioral phenotypes.
-The [BXD](Documentation.html#bxd-mouse) are recorded for 4 days under light and dark condition. The 3rd day, mice underwent 6h of [sleep deprivation](Documentation.html#sleep-deprived). The recording follow-up for 2 day (recovery).
-The 2 days of baseline are considered as [Control](Documentation.html#control) and the 2 days of recorvery are considered as the condition [sleep deprivted](Documentation.html#sleep-deprived)	
+The [BXD](README.html#bxd-mouse) are recorded for 4 days under light and dark condition. The 3rd day, mice underwent 6h of [sleep deprivation](README.html#sleep-deprived). The recording follow-up for 2 day (recovery).
+The 2 days of baseline are considered as [Control](README.html#control) and the 2 days of recorvery are considered as the condition [sleep deprivted](README.html#sleep-deprived)	
 
 
 #### Input
 
-[BXD](Documentation.html#bxd-mouse); [Control](Documentation.html#control); [Sleep deprivation](Documentation.html#sleep-deprived)
+[BXD](README.html#bxd-mouse); [Control](README.html#control); [Sleep deprivation](README.html#sleep-deprived)
 
 #### Output
 
-[EEG Spectral Data](Documentation.html#spectral-data); [PIR motion Data](Documentation.html#pir-motion-sensor-data); [EEG manula annotation](Documentation.html#manual-annotation)
+[EEG Spectral Data](README.html#spectral-data); [PIR motion Data](README.html#pir-motion-sensor-data); [EEG manula annotation](README.html#manual-annotation)
 
