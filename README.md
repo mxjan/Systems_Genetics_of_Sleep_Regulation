@@ -14,6 +14,12 @@ associated [website](https://bxd.vital-it.ch/#/)
 * **Maxime Jan** - maxime.jan@unil.ch
 * **Nastassia Gobet** - nastassia.gobet@unil.ch
 
+# Branches
+
+- Master
+- Reproduced
+- MM10
+
 # License
 
 CC BY [license](https://creativecommons.org/licenses/by/4.0/)

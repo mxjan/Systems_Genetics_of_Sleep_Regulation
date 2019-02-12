@@ -1,0 +1,46 @@
+# Project
+	#Name
+	Systems Genetics of Sleep
+	
+	#ID
+	SysGenSleep
+	
+	#Authors
+	$<Maxime Jan [mjan]>
+	$<Ioannis Xenarios [iox]>
+	$<Paul Franken [pfrank]>
+	$<Shanaz Diessler [sdiess]>
+
+	#Link
+		#Description
+		Link toward our publication
+		#Link
+		https://www.ncbi.nlm.nih.gov/pubmed/
+
+	#Link
+		#Link
+		https://www.vital-it.ch/
+		#Description
+		Vital-IT
+	
+	#Link
+		#Description
+		Link toward Franken lab
+		#Link
+		https://www.unil.ch/cig/en/home/menuinst/research/research-groups/prof-franken.html	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

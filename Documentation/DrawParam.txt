@@ -1,0 +1,62 @@
+#DrawMatrix 30	35
+
+#Draw Experiment:SysGenSleep 22 15
+
+#Draw Population:BXD 19 9
+#Draw Experiment:SD 19 17
+#Draw Experiment:Ctl 19 22
+
+#Draw Data:PBXDmolSD 17 10
+#Draw Data:PBXDmolNSD 17 15
+#Draw Data:PBXDbehav 17 22
+
+#Draw Files:fqFiles 15 12
+#Draw File:MetaboData 15 16
+
+#Draw Workflow:fqToRaw 13 9
+#Draw Script:HTcount 11 9 
+#Draw File:RefSeq2014 13 12
+
+#Draw Script:NormScript 9 9
+#Draw Files:NormCounts 7 9
+
+
+####### Variant Calling
+
+#Draw Files:bamhypo 15 2
+#Draw Files:bamBS 15 6
+
+#Draw Workflow:VarCall 13 3
+
+#Draw File:VarCall_vcf 11 3
+
+#Draw Workflow:Var_merge 9 3
+#Draw Data:GN2005 11 6
+
+#Draw File:BXDgeno 7 3
+
+######### eQTL workflow
+
+#Draw Workflow:FastQTL 5 4
+#Draw Files:eQTLfiles 3 4
+
+####### HivePlot
+
+#Draw Script:pcor 3 9
+#Draw Files:pcorMatrix 1 9
+
+####### EEG processing
+
+#Draw Files:EEG_R1 15 22
+#Draw Files:spectral_b_files 15 28
+#Draw Files:PIR_data 15 33
+
+#Draw Workflow:MSSP 13 22
+#NoDraw Files:PredictedFiles 11 22
+#Draw Workflow:EEGPIRanalysis 9 22
+#Draw Files:SleepPheno 6 22
+
+######## Figures
+#Draw File:SleepPhenoCatego 9 27
+#Draw Rmarkdown:h2 6 27
+#Draw Rmarkdown:MetaboDE 13 16

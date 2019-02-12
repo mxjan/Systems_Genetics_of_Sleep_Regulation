@@ -1,0 +1,40 @@
+#File
+
+	#Name
+	RefSeq DataSet 2014
+	#ID
+	RefSeq2014
+	#Path
+	/home/mjan/PhD/Rdata/RefSeq_20140129.gtf
+	#Description
+	File that come from UCSC table browser. It was generated using RefSeq Reflat database on the 2014/01/29.
+	#Link
+		#Description
+		UCSC table browser
+		#Link
+		https://genome.ucsc.edu/cgi-bin/hgTables
+
+#File
+	#Name
+	GeneNetwork genotypes
+	#ID
+	GN2005
+	#Path
+	/home/mjan/PhD/Rdata/GNmm9.Fred.GNformat.geno
+	#Description
+	Genotype from GeneNetwork
+	#Version
+	2005
+	#Link
+		#Description
+		Genenetwork
+		#Link
+		http://genenetwork.org/webqtl/main.py
+
+#File
+	#Name
+	Reference genome
+	#ID
+	mm9
+	#Description
+	Mus_musculus.NCBIM37.67.dna.top.level.fa

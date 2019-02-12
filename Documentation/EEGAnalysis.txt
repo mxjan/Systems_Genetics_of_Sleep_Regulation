@@ -1,0 +1,150 @@
+# Workflow
+	#Name
+	EEG & State & PIR analysis
+	#ID
+	EEGPIRanalysis
+	#Input
+	$<spectral files [spectral_b_files]>
+	$<PIR data [PIR_data]>
+	$<Semi-Automatic Annotation [PredictedFiles]>
+	#Output
+	$< 341 Phenotype Data [SleepPheno]>
+	#Authors
+	$<Paul Franken [pfrank]>
+	#Description
+	
+	* EEG spectral data analysis for spectral power and spectral gain analysis.
+	* Activity is measure using PIR motion sensor.
+	* State concerns Wake [w], NREM[n] and REM[n]
+
+	#Link
+		#Description
+		Phenotypes full description
+		#Link
+		Phenotypes.docx
+	
+
+# File
+	#Name
+	Spectral Data
+	#ID
+	spectral_b_files
+	#Description
+	Spectral data used for manual annotation and semi-automatic learning approach.
+	The files are transforme using Fast Fourier transform (FFT). Ask $<Yann Emmenegger [yemmeneg]> for the processing details.
+	#Path
+	Archived by $<Paul Franken [pfrank]>
+
+# File
+	#Name
+	Manual Annotation
+	#ID
+	EEG_R1
+	# Description
+	manually annotated data on the $<3rd day of recording (R1) [PBXDbehav]>. Performed by $<Yann Emmenegger [yemmeneg]>. Manual annotation is performed on each mouse of each $< BXD lines [BXD]>.
+	#Path
+	Archived by $<Paul Franken [pfrank]>
+
+# File
+	#Name
+	PIR motion sensor data
+	#ID
+	PIR_data
+	#Description
+	PIR motion sensor data recording activity for each mouse of each $<BXD lines [BXD]>
+	#Path
+	Archived by $<Paul Franken [pfrank]>
+
+#File
+	#Name
+	Predicted EEG State
+	#ID
+	PredictedFiles
+	#Description
+	Predicted state for each $<BXD [BXD]>. Prediction for 4 days every 4 seconds (86400 epochs). State are wake [w], NREM sleep [n], REM sleep [r] or artefact value of wake [1], NREM [2] or REM [3]. The 3rd day is replaced by the $<manual annotation [EEG_R1]>
+	#Path
+	Archived by $<Paul Franken [pfrank]>
+	
+
+# Workflow
+
+	#Name
+	Semi-Automatic EEG scoring
+	#ID
+	MSSP
+	#Input
+	$< Manually annotated data [EEG_R1]>
+	$< Spectral data [spectral_b_files]>
+	#Output
+	$<Predicted Files [PredictedFiles]>
+	#Description
+	 
+	* Supervised machine learning approach for EEG annotation.
+	 
+	* Multiple SVMs on 1s data resolution
+	 
+	* For reinstallation follow the README.txt
+	 
+	* Full description of the Workflow available in the README.txt
+	 
+	* Main bash script is: Mouse_SleepState_Prediction
+
+	#Path
+	/data/ul/projects/bxd/PROD-V1.0.1a/
+
+	#Authors
+	$<Nicolas Guex [nguex]>
+	$<Maxime Jan [mjan]>
+
+	#Version
+	1.0.1a
+
+# File
+	#Name
+	EEG and Behavioral Phenotypes
+	#ID
+	SleepPheno
+	#Description
+	EEG and Behavioral sleep phenotypes.
+	Phenotypes contain:
+	 	 	
+	* activity
+	* EEG
+	* State
+	 
+	The directory "Phenotypes/" contains the following information:
+	 
+	* $<line (BXD lines) [BXD]>
+	* mouseID (in format "lines"_"mouseID")
+	* room (room used for recording)
+	* rec (recording time period)
+	* worm (worm detection yes:1 no:0)
+	* Phenotypes ...
+	 
+	A mean value per lines was computed and stored into the following files:
+	 	
+	* as text: AllPheno.txt
+	* as Rdata matrix: SleepPhenotype.Rdata
+
+	#Path
+	/home/mjan/PhD/Rdata
+
+# File
+	#Name
+	Phenotypes Categories
+	#ID
+	SleepPhenoCatego
+	# Description
+	Categories for each sleep phenotypes. The categories are related to EEG/State or Activity. The file contain also subcategories and condition related to each phenotypes (can be $<bsl [Ctl]>, $<rec: after sleep deprivation[SD]> or $< SD: during sleep deprivation [Sd])	
+	#Path
+	/home/mjan/PhD/Rdata/Phenotype.Categories.txt
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,35 @@
+Data	SysGenSleep	0.4166666666666667	0.967741935483871	Systems Genetics of Sleep	Path in description
+Data	BXD	0.25	0.8709677419354839	BXD mouse	Path in description
+Data	SD	0.4722222222222222	0.8709677419354839	Sleep deprived	Path in description
+Data	Ctl	0.6111111111111112	0.8709677419354839	Control	Path in description
+Data	PBXDmolSD	0.2777777777777778	0.8064516129032258	BXD Molecular SD	Path in description
+Data	PBXDmolNSD	0.4166666666666667	0.8064516129032258	BXD Molecular NSD	Path in description
+Data	PBXDbehav	0.6111111111111112	0.8064516129032258	BXD Behavioral/EEG	Path in description
+Data	MetaboData	0.4444444444444444	0.7419354838709677	Metabolite level	Path in description
+Data	VarCall_vcf	0.08333333333333333	0.6129032258064516	BXD variant [.vcf]	Path in description
+Data	BXDgeno	0.08333333333333333	0.4838709677419355	BXD genotypes	Path in description
+Data	SleepPhenoCatego	0.75	0.5483870967741935	Phenotypes Categories	Path in description
+Datas	fqFiles	0.3333333333333333	0.7419354838709677	Fastq Files	Path in description
+Datas	NormCounts	0.25	0.4838709677419355	Normalized Counts	Path in description
+Datas	bamhypo	0.05555555555555555	0.7419354838709677	Hypothalamus Bam files	Path in description
+Datas	bamBS	0.16666666666666666	0.7419354838709677	Brain stem Bam files	Path in description
+Datas	eQTLfiles	0.1111111111111111	0.2903225806451613	eQTLfiles	Path in description
+Datas	pcorMatrix	0.25	0.22580645161290322	Partial Correlation Matrix	Path in description
+Datas	EEG_R1	0.6111111111111112	0.7419354838709677	Manual Annotation	Path in description
+Datas	spectral_b_files	0.7777777777777778	0.7419354838709677	Spectral Data	Path in description
+Datas	PIR_data	0.9166666666666666	0.7419354838709677	PIR motion sensor data	Path in description
+Datas	SleepPheno	0.6111111111111112	0.45161290322580644	EEG and Behavioral Phenotypes	Path in description
+Workflow	fqToRaw	0.25	0.6774193548387096	fastq to bam files	Path in description
+Workflow	VarCall	0.08333333333333333	0.6774193548387096	Variant calling with GATK	Path in description
+Workflow	Var_merge	0.08333333333333333	0.5483870967741935	Variant merging	Path in description
+Workflow	FastQTL	0.05555555555555555	0.3870967741935484	eQTL dectection with FastQTL	Path in description
+Workflow	FC_FastQTL	0.16666666666666666	0.3870967741935484	eQTL detection for fold-change after SD	Path in description
+Workflow	MSSP	0.6111111111111112	0.6451612903225806	Semi-Automatic EEG scoring	Path in description
+Workflow	EEGPIRanalysis	0.6111111111111112	0.5483870967741935	EEG & State & PIR analysis	Path in description
+Script	HTcount	0.25	0.6129032258064516	htseq-count union	Path in description
+Script	NormScript	0.25	0.5483870967741935	Counts normalization	Path in description
+Script	pcor	0.25	0.2903225806451613	Genes partial correlations	Path in description
+DB	RefSeq2014	0.3333333333333333	0.6774193548387096	RefSeq DataSet 2014	Path in description
+DB	GN2005	0.16666666666666666	0.6129032258064516	GeneNetwork genotypes	Path in description
+Rmarkdown	h2	0.75	0.45161290322580644	Heritability calculation	Path in description
+Rmarkdown	MetaboDE	0.4444444444444444	0.6774193548387096	Metabolite Ctl vs SD	Path in description
