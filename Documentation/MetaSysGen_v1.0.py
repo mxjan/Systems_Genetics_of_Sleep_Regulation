@@ -991,7 +991,7 @@ Meta.SetExtendedGroupName("MetaboFile","Metabolite Files")
 Meta.SetExtendedGroupName("pcorMatrix","Partial Correlation Matrix")
 
 # Set order of information (printed in markdown)
-Meta.SetOrderType({1:"Project",2:"Author",3:"File",4:"Workflow",5:"Script",6:"Population",7:"Tissu",8:"Condition",9:"Rmarkdown",10:"Experiment"})
+Meta.SetOrderType({1:"Project",2:"Author",3:"ReferenceFile",4:"File",5:"Workflow",6:"Script",7:"Population",8:"Tissu",9:"Condition",10:"Rmarkdown",11:"Experiment"})
 
 # Title must be 1, and must be text
 Meta.SetOrderInfo({1:"Name",2:"Description",3:"Path",4:"Input",5:"Output",6:"CS",7:"Arguments",8:"Version",9:"Authors",10:"Link"})
@@ -1015,7 +1015,7 @@ output:
 
 Meta.AddYAML(YAML)
 
-Meta.GenerateMarkdown("README.md",DataDisplay = "Name",DrawparamFile = "DrawParamSimple.txt")
+Meta.GenerateMarkdown("Documentation.md",DataDisplay = "Name",DrawparamFile = "DrawParamSimple.txt")
 #Meta.GenerateMarkdown("Test.md",DataDisplay = "Name",DrawparamFile = "DrawParamNew.txt")
 
 print("Display ID")

@@ -224,14 +224,14 @@
 
 # File
 	#Name
-	BXD variant [.vcf]
+	BXD Raw variant [.vcf]
 	#ID
 	VarCall_vcf
 	#Path
-	My Data ..
+	/Variants/BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.vcf 
 	#Description
-	Variant calling file generated with $< GATK [VarCall]>
-
+	Raw Variant calling file generated with $< GATK [VarCall]> and annotated using dbsnp
+	
 
 #File
 	#Name

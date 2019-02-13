@@ -1,11 +1,11 @@
-#File
+#ReferenceFile
 
 	#Name
 	RefSeq DataSet 2014
 	#ID
 	RefSeq2014
 	#Path
-	/home/mjan/PhD/Rdata/RefSeq_20140129.gtf
+	SysGenOfSleep_BXDmm9_data.gz/ReferenceFiles/RefSeq_20140129.gtf
 	#Description
 	File that come from UCSC table browser. It was generated using RefSeq Reflat database on the 2014/01/29.
 	#Link
@@ -14,24 +14,24 @@
 		#Link
 		https://genome.ucsc.edu/cgi-bin/hgTables
 
-#File
+#ReferenceFile
 	#Name
 	GeneNetwork genotypes
 	#ID
 	GN2005
 	#Path
-	/home/mjan/PhD/Rdata/GNmm9.Fred.GNformat.geno
+	SysGenOfSleep_BXDmm9_data.gz/ReferenceFiles/GNmm9.Fred.GNformat.geno
 	#Description
 	Genotype from GeneNetwork
 	#Version
-	2005
+	2001-2016
 	#Link
 		#Description
 		Genenetwork
 		#Link
 		http://genenetwork.org/webqtl/main.py
 
-#File
+#ReferenceFile
 	#Name
 	Reference genome
 	#ID

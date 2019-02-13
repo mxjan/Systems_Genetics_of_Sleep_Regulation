@@ -6,7 +6,7 @@ Data	PBXDmolSD	0.2777777777777778	0.8064516129032258	BXD Molecular SD	Path in de
 Data	PBXDmolNSD	0.4166666666666667	0.8064516129032258	BXD Molecular NSD	Path in description
 Data	PBXDbehav	0.6111111111111112	0.8064516129032258	BXD Behavioral/EEG	Path in description
 Data	MetaboData	0.4444444444444444	0.7419354838709677	Metabolite level	Path in description
-Data	VarCall_vcf	0.08333333333333333	0.6129032258064516	BXD variant [.vcf]	Path in description
+Data	VarCall_vcf	0.08333333333333333	0.6129032258064516	BXD Raw variant [.vcf]	Path in description
 Data	BXDgeno	0.08333333333333333	0.4838709677419355	BXD genotypes	Path in description
 Data	SleepPhenoCatego	0.75	0.5483870967741935	Phenotypes Categories	Path in description
 Datas	fqFiles	0.3333333333333333	0.7419354838709677	Fastq Files	Path in description
