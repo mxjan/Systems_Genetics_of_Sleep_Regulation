@@ -631,41 +631,14 @@ Workflow to merge the public genotype available in geneNetwork and variant calle
 RNA-sequencing. 
 The variant that are highly different from the RNA-seq data are tag as unknown 'U'
 The scripts are within Scripts/LowLayer/VariantMerging/
-First we filter Variant calling file for variant that: 1. pass the GATK filter, 2. have genotype for 90% of BXD, 3. have a quality of 5000
-> python2 FilterRNAseqVariant.py BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf
-First the file from RNA-seq and GeneNetwork are combined
-> python2 CombineGenotype.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno
-Then we get An improbable marker files, containing GeneNework variant discrepency with RNA-seq (see [GetGenotypeRegion.py](Documentation.html#get-genotypes-discrepancy-between-genenetwork-and-rna-seq))
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 1 2>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 2 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 3 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 4 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 5 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 6 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 7 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 8 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 9 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 10 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 11 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 12 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 13 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 14 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 15 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 16 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 17 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 18 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 19 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-> GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno X 2>>ImprobableGNMarkersResults.txt 1>/dev/null
-Set ImprobableGNMarkers.txt as 'U' in GeneNetwork file
-> python2 GN_Correction.py GNmm9.Fred.GNformat.geno ImprobableGNMarkersResults.txt GNmm9.Fred.GNformat.GNCorrected.geno
-Recombine files
-> python2 CombineGenotype.py GNmm9.Fred.GNformat.GNCorrected.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.geno 
-Filter for genotypes
-> python2 CombineGenotypeV2.py GNmm9.Fred.GNformat.GNCorrected.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.geno > BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.FiltSNPs.geno
-Rename File
-> mv BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.FiltSNPs.geno Genotype.geno
-Change header to match general BXD name in phenotype files
-> GenotypeHeaderChange.py Genotype.geno Genotype.FormatedName.geno
+1. First we filter Variant calling file for variant that: pass the GATK filter, have genotype for 90% of BXD, have a quality of 5000
+2. the file from RNA-seq and GeneNetwork are combined
+3. we get An improbable marker files, containing GeneNework variant discrepency with RNA-seq (see [GetGenotypeRegion.py](Documentation.html#get-genotypes-discrepancy-between-genenetwork-and-rna-seq))
+4. ImprobableGNMarkers.txt as 'U' in GeneNetwork file
+5. Recombine files
+6. Filter for genotypes
+7. Rename File
+8. Change header to match general BXD name in phenotype files
 
 
 #### Input
@@ -675,6 +648,37 @@ Change header to match general BXD name in phenotype files
 #### Output
 
 [BXD Genotypes](Documentation.html#bxd-genotypes)
+
+#### CS
+
+>python2 FilterRNAseqVariant.py BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf <br>
+python2 CombineGenotype.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 1 2>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 2 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 3 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 4 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 5 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 6 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 7 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 8 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 9 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 10 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 11 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 12 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 13 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 14 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 15 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 16 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 17 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 18 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno 19 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GetGenotypeRegion.py GNmm9.Fred.GNformat.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.geno X 2>>ImprobableGNMarkersResults.txt 1>/dev/null <br>
+python2 GN_Correction.py GNmm9.Fred.GNformat.geno ImprobableGNMarkersResults.txt GNmm9.Fred.GNformat.GNCorrected.geno <br>
+python2 CombineGenotype.py GNmm9.Fred.GNformat.GNCorrected.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.geno <br>
+python2 CombineGenotype.py GNmm9.Fred.GNformat.GNCorrected.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.geno <br>
+python2 CombineGenotypeV2.py GNmm9.Fred.GNformat.GNCorrected.geno BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.vcf BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.geno > BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.FiltSNPs.geno <br>
+mv BXD.PFLiver.PFBrain.BTBrain.Hypo.VariantFiltration.annotated.90pct.5K.GNCorrected.FiltSNPs.geno Genotype.geno <br>
+GenotypeHeaderChange.py Genotype.geno Genotype.FormatedName.geno <br>
 
 ## eQTL dectection with FastQTL
 
