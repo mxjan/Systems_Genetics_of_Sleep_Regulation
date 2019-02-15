@@ -1,0 +1,624 @@
+---
+title: Target Gene Prioritization
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+
+Run using Rscript RmdTomd.R -i Scoring -o Scoring -c SD -t C -p 10000 -l 259 -k S; google-chrome Scoring.html
+
+
+# Gene prioritization for systems genetics design
+
+* Report using Rmarkdown, more information available at http://rmarkdown.rstudio.com/
+
+* Rmarkdown syntaxe available here: https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf
+
+* More details: http://rmarkdown.rstudio.com/html_document_format.html
+
+***
+>Author: Maxime Jan 
+>
+>Contact: Maxime.Jan@sib.swiss
+>
+>Lausanne University (UNIL), Center of Integrative Genomics, Vital-IT (Swiss Institute of Bioinformatics)
+>
+>Related paper: The molecular consequences of sleep loss: a systems genetics approach, PMID: 1234
+
+***
+
+## General information
+
+### Packages required to run this script
+
+* getopt
+* parallel
+* knitr
+* markdown
+* psych
+* qvalue
+* qtl
+* MASS
+* stats
+* rPython
+
+### Script to generate the rmarkdown:
+
+We use this script to generate this markdown
+
+```{r,code=readLines('RmdTomd.R'),eval=F}
+```
+
+* -i < input-name > (Input file name without extension .Rmd)
+* -c < NSD | SD > (Condition is Non-Sleep-Deprived or Sleep-Deprived)
+* -t < C | L > (Tissu is Cortex or Liver)
+* -l < 2|3|4.. > (Phenotype ID, DO NOT USE 1)
+* -k < S | M > (Phenotype ID is from Metabolite or Sleep dataset)
+* -p < 10000 > (Number of permutation to run for scoring FDR estimation)
+* -q < 1000 > (Number of permuation to run with r/qtl)
+* -d < 20 > (Discretization used for weighting signal)
+* -n < 1 > (Number of cores to use)
+* -w < Hk | MaxEnt > (weighting function using Henikoff or Maximum Entropy [EXPERIMENTAL] )
+
+Example of command line: Rscript RmdTomd.R -i Scoring.Rmd -c SD -t C -p 100 -l 259 -k S -q 100 -d 20; google-chrome Scoring.html
+
+# <span style="color:green">Prioritization </span>
+
+## Package, files and options
+
+#### Libraries
+
+We load the required libraries
+
+Versions are display in the Session Information paragraph of the report
+
+```{r,echo=T,warning=F,error=F,message=F}
+library(parallel)
+library(knitr)
+library(rmarkdown)
+library(psych)
+library(qvalue)
+library(qtl)
+library(MASS)
+library(stats)
+```
+
+
+#### Set seed
+
+We use a seed to reproduce our results when running permuations
+
+```{r,echo=T}
+set.seed(1)
+```
+
+
+#### Options recieved
+
+```{r}
+# Set some default
+if (is.null(opt$id)){knit_exit()} else {PhenoID<<-opt$id}
+if (is.null(opt$condition)){knit_exit()} else {Condition<<-opt$condition}
+if (is.null(opt$tissu)){knit_exit()} else {Tissu<<-opt$tissu}
+if (is.null(opt$phenotypetype)){knit_exit()} else {PhenotypesType<<-opt$phenotypetype}
+if (is.null(opt$permutations)){ScorePermutation <<- 10000 } else {ScorePermutation<<-opt$permutations}
+if (is.null(opt$QTLpermutations)){QTLPerm<<-1000} else {QTLPerm<<-opt$QTLpermutations}
+if (is.null(opt$cores)){CORES<<-1} else {CORES<<-opt$cores}
+if (is.null(opt$weighting)){WeightingMethod<<-"Hk"} else {WeightingMethod<<-opt$weighting}
+if (is.null(opt$discretization)){Discretization<<-20} else {Discretization<<-opt$discretization}
+if (is.null(opt$Log)){LogTransform<<-F} else {LogTransform<<-T}
+
+m<-t(matrix(opt));colnames(m)<-names(opt)
+data.frame(m[,-1])
+```
+
+
+#### Set filenames, working directory and tmp directory
+
+All information about files and path are written within FileLocation.R
+
+
+We also load a few function to plot our phenotypes (functions display and the end of the report)
+
+Finally we load a few functions that will be used in the scoring (functions display and the end of the report)
+
+
+```{r}
+#save(PhenoID,Condition,Tissu,PhenotypesType,ScorePermutation,QTLPerm,CORES,WeightingMethod,Discretization,LogTransform,opt,file="option.Rdata")
+```
+
+
+
+```{r,warning=F,error=F,message=F,results='hide'}
+source("FileLocation.R")
+setwd(WD)
+file.sources = list.files(SCRIPTDIR,pattern="*.R$")
+sapply(paste(SCRIPTDIR,file.sources,sep=''),source)
+
+if (PhenotypesType == "S"){
+  AllPheno<-read.table(FileSleepPhenotype,header=T)
+  PhenotypeName<-colnames(AllPheno)[PhenoID]
+
+} else if (PhenotypesType == "M"){
+  
+   if (Condition =="SD"){
+    AllPheno<-read.table(FileMetaboliteSDPhenotype,header=T)
+    PhenotypeName<-colnames(AllPheno)[PhenoID]
+ 
+   } else if (Condition == "NSD"){
+    AllPheno<-read.table(FileMetaboliteNSDPhenotype,header=T)
+    PhenotypeName<-colnames(AllPheno)[PhenoID]
+    
+  } else {knit_exit()}
+} else {knit_exit()}
+
+if (LogTransform == T){
+  AllPheno[,PhenotypeName]<-log2(AllPheno[,PhenotypeName])
+}
+
+```
+
+
+## Phenotype processed
+
+```{r,code=readLines(paste(SCRIPTDIR,"BarplotPhenotype.R",sep=''))}
+```
+
+```{r,echo=T,fig.height=8,fig.width=4}
+PhenotypePlot(AllPheno[,PhenotypeName],AllPheno$ID,"Mean distribution",PhenotypeName)
+```
+
+
+##### Tmp file name
+
+Name of the files generated in tmp directory
+
+```{r,results='hide'}
+if (Tissu=="C"){OutputName<-paste(PhenotypeName,'.Cortex',sep='')}
+if (Tissu=="L"){OutputName<-paste(PhenotypeName,'.Liver',sep='')}
+if (Condition=="NSD"){OutputName<-paste(OutputName,'.NSD',sep='')}
+if (Condition=="SD"){OutputName<-paste(OutputName,'.SD',sep='')}
+OutputName<-paste(TMPDIR,OutputName,sep='')
+```
+
+#### Generate temporary files
+
+We generate and format files for the scoring function. The files are all ordered according to lines. Details about this function can be find bellow
+
+Here are the mice lines we used in the prioritization. Only the BXD lines are used for the scoring (33)
+
+```{r}
+#Mice<-colnames(read.table("C:/Users/Maxime Jan/switchdrive/Project/GeneScoring_mm10/data/edgeR_normalized_log2CPM_Cortex_NSD.tab",header=T))
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+#Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Mice<-Mice[-grep("BXD005|BXD029|BXD032|BXD063|B6|DB|BD",Mice)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,OutputName,Tissu=Tissu,Condition=Condition,PhenotypesType=PhenotypesType)
+Mice
+```
+
+*Details about the function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"GenerateFiles.R",sep=''))}
+```
+
+We have generated 3 files containing our phenotype, genotypes, and gene expression data.
+
+```{r}
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+```
+
+We generate also a copy the cis-eQTL (according to condition and tissu) to work with it. Cis-eQTL results were generated using FastQTL and p-value were corrected using qvalue.
+
+```{r}
+CopyciseQTL(OutputName,Tissu=Tissu,Condition=Condition)
+```
+
+*Details about the function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"CopyCiseQTL.R",sep=''))}
+```
+
+## Run QTL analysis
+
+We run a QTL analysis on our phenotype. 
+
+* Results display modification of LOD score attributed to a gene
+
+* If a marker associated to a gene (cis-eQTL or damaging variation) is located in a better associated region, the LOD score of the gene will be the one of the associated marker
+
+```{r,warning=F,error=F,message=F}
+results<-QTLAnalysis(PhenotypeData,GenotypeData,OutputName)
+QTL<-results[[1]]
+QTLMB<-results[[2]]
+QTL.scan<-results[[3]] # scan using cM
+QTLMB.scan<-results[[4]] # scan using Mb
+QTL.scanperm<-results[[5]] # permutation
+```
+
+
+```{r}
+SignifThresh<-quantile(as.vector(QTL.scanperm[,1]),prob=1-0.05)
+SuggThresh<-quantile(as.vector(QTL.scanperm[,1]),prob=1-0.63)
+
+QTLPlot<-function(){
+  plot(QTL.scan,ylim=c(0,max(SignifThresh,QTL.scan$lod)+1))
+  abline(h=SignifThresh,col="red")
+  abline(h=SuggThresh,col="blue")
+}
+QTLPlot()
+
+OutputScore<-paste(gsub(".Rmd",'',opt$input),opt$id,opt$condition,opt$tissu,opt$phenotypetype,opt$weighting,opt$discretization,"QTL.pdf",sep=".")
+pdf(file=OutputScore,width = 10,height = 5)
+QTLPlot()
+dev.off()
+```
+
+```{r}
+if (max(QTL.scan$lod) < SuggThresh){
+  knit_exit("No QTL detected")
+}
+```
+
+
+*Details about the function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"QTLAnalysis.R",sep=''))}
+```
+
+We use a 1.5 LOD interval for the QTL detection. In order to detect multiple QTL on a same chromosome:
+
+* QTL that pass suggestive threshold and are 5 cM appart are first called independant
+
+* We mesure a 1.5 LOD interval for these QTL
+
+* If intervals overlap, the QTL are merged
+
+
+```{r}
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,SuggThresh,SignifThresh,QTLMB.scan)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+QTLsPeaks$cMStart<-round(as.numeric(as.character(QTLsPeaks$cMStart)),2)
+QTLsPeaks$cMEnd<-round(as.numeric(as.character(QTLsPeaks$cMEnd)),2)
+QTLsPeaks$LODpeak<-round(as.numeric(as.character(QTLsPeaks$LODpeak)),2)
+QTLsPeaks$MbStart<-round(as.numeric(as.character(QTLsPeaks$MbStart)),3)
+QTLsPeaks$MbEnd<-round(as.numeric(as.character(QTLsPeaks$MbEnd)),2)
+QTLsPeaks
+```
+
+
+*Details about the QTL peak detection function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"QTLpeakDetection.R",sep=''))}
+```
+
+
+## Scoring
+
+*We set a few options*
+```{r}
+RescaleType<<-"interval" # interval | quantile
+```
+
+We read the file for ph-QTL or m-QTL result, and create a matrix that will contain all used scores for gene prioritization
+
+```{r}
+# create matrix of Scores
+load(paste(OutputName,'.LODScoreMatrix.Rdata',sep=''))
+ScoresMatrix<-matrix(nrow=ncol(MatrixProba),ncol=0)
+rownames(ScoresMatrix)<-colnames(MatrixProba)
+```
+
+### Integration
+
+We integrate our diffrent analysis results
+
+* The ph- or m-QTL result
+
+* The cis-eQTL results
+
+* The correlation of gene expression with phenotype (used in ph- m-QTL)
+
+* The variation detected on protein
+
+* The differential expression results computed using limma
+
+```{r}
+ScoresMatrix<-Integrate_ph_m_QTLResult(ScoresMatrix)
+ScoresMatrix<-Integrate_eQTLResult(ScoresMatrix)
+ScoresMatrix<-Integrate_CorResult(ScoresMatrix)
+ScoresMatrix<-Integrate_VariationResult(ScoresMatrix)
+ScoresMatrix<-Integrate_DifferentialExpressionResult(ScoresMatrix)
+#ScoresMatrix<-Integrate_DifferentialExpressionResult(ScoresMatrix,ScoringType = "effect-size")
+```
+
+*Details about the functions use:*
+```{r,code=readLines(paste(SCRIPTDIR,"Integrate_Scores.R",sep=''))}
+```
+
+Let's have a quick view on our ScoresMatrix
+
+```{r,fig.height=8,fig.width=8,collapse=TRUE}
+par(mfrow=c(3,2))
+pch<-19;cex<-.5
+plot(ScoresMatrix[,"QTLScore"],xlab="genes",ylab="LOD score",pch=pch,cex = cex,main="ph/m-QTL score")
+plot(ScoresMatrix[,"eQTLScore"],xlab="genes",ylab="-log10 qvalue",pch=pch,cex = cex,main="eQTL score")
+plot(ScoresMatrix[,"CorrelationScore"],xlab="genes",ylab="-log10 pvalue",pch=pch,cex = cex,main="Correlation score")
+plot(ScoresMatrix[,"VariationScore"],xlab="genes",ylab="Variation Score",pch=pch,cex = cex,main="Variation score")
+plot(ScoresMatrix[,"DEScore"],xlab="genes",ylab="-log10 adjusted-pvalue",pch=pch,cex = cex,main="Differential Expression score")
+```
+
+### Score rescale
+
+Rescale our Scores from 0 to 1
+
+```{r}
+ScoresMatrixRescaled<-ScoresMatrix
+ScoresMatrixRescaled<-Rescale_ph_m_QTLResult(ScoresMatrixRescaled)
+ScoresMatrixRescaled<-Rescale_eQTLResult(ScoresMatrixRescaled,RescaleType="interval")
+ScoresMatrixRescaled<-Rescale_CorrResult(ScoresMatrixRescaled,RescaleType="interval")
+ScoresMatrixRescaled<-Rescale_VarResult(ScoresMatrixRescaled,RescaleType="interval")
+ScoresMatrixRescaled<-Rescale_DEResult(ScoresMatrixRescaled,RescaleType="interval")
+rownames(ScoresMatrixRescaled)<-rownames(ScoresMatrix)
+```
+
+```{r,fig.height=8,fig.width=8,collapse=TRUE}
+par(mfrow=c(3,2))
+pch<-19;cex<-.5
+plot(ScoresMatrixRescaled[,"QTLScore"],xlab="genes",ylab="QTL Score",pch=pch,cex = cex,main="ph/m-QTL score")
+plot(ScoresMatrixRescaled[,"eQTLScore"],xlab="genes",ylab="eQTL Score",pch=pch,cex = cex,main="eQTL score")
+plot(ScoresMatrixRescaled[,"CorrelationScore"],xlab="genes",ylab="Correlation Score",pch=pch,cex = cex,main="Correlation score")
+plot(ScoresMatrixRescaled[,"VariationScore"],xlab="genes",ylab="Variation Score",pch=pch,cex = cex,main="Variation score")
+plot(ScoresMatrixRescaled[,"DEScore"],xlab="genes",ylab="DE Score",pch=pch,cex = cex,main="Differential Expression score")
+```
+
+*Details about the rescale functions used:*
+```{r,code=readLines(paste(SCRIPTDIR,"ScoreRescale.R",sep=''))}
+```
+
+### Weighting
+
+
+#### Discretization
+
+We weight our different scores to reduce redundant score.
+
+Both method: Henikoff or Entropy Maximization [EXPERIMENTAL !] require discrete data
+
+First we discretize our data
+
+```{r}
+SeqDisc<-seq(from=0,to=1,length.out=Discretization+1)
+DiscretizationFun<-function(x){
+  return(cut(x,breaks=SeqDisc, include.lowest=T))
+}
+ScoresMatrixDisc<-apply(ScoresMatrixRescaled,2,DiscretizationFun)
+rownames(ScoresMatrixDisc)<-rownames(ScoresMatrix)
+```
+
+#### Weighting
+
+
+To compute weight of the scores, we select gene within our QTLs interval
+
+```{r}
+gpos<-read.table(RefSeqData) # gene position
+
+GenesInInterval<-c()
+# See peaks detected
+for (i in 1:nrow(QTLsPeaks)){
+  Start<-QTLsPeaks[i,"MbStart"]
+  End<-QTLsPeaks[i,"MbEnd"]
+  chr<-as.character(QTLsPeaks[i,"Chr"])
+  Chromosome<-paste("chr",chr,sep="")
+  filter<-gpos$Chromosome == Chromosome & gpos$End > Start & gpos$Start < End
+  GenesInInterval<-c(GenesInInterval,rownames(gpos[filter,]))
+}
+QTLscore<-ScoresMatrix[,"QTLScore"]
+GenesInSuggestive<-rownames(ScoresMatrix)[QTLscore>=(-log10(0.63))]
+
+GenesForWeighting<-unique(c(GenesInSuggestive,GenesInInterval))
+```
+
+We compute weights
+
+```{r}
+if (WeightingMethod == "Hk"){
+  weights<-HenikoffWeight(ScoresMatrixDisc,unique(GenesInInterval))
+  print(weights)
+}
+```
+
+*Details about the Henikoff function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"Henikoff.R",sep=''))}
+```
+
+
+```{r}
+if (WeightingMethod == "MaxEnt"){
+  Sequences<-list()
+  for (i in colnames(ScoresMatrixDisc)){
+    Sequences[[i]]<-as.vector(ScoresMatrixDisc[GenesInInterval,i])
+  }
+  save(Sequences,file="SequencesMaxEnt.Rdata")
+  weights<- EntropyMaximization(Sequences)
+  print(weights)
+}
+```
+
+*Details about the function to maximize entropy:*
+```{r,code=readLines(paste(SCRIPTDIR,"EntropyMaximization.R",sep=''))}
+```
+
+### Integrated Score
+
+```{r}
+ScoresMatrixWeighted<-ScoresMatrixRescaled
+for (i in names(weights)){
+  ScoresMatrixWeighted[,i]<-ScoresMatrixRescaled[,i]*weights[i]
+}
+IntegratedScores<-apply(ScoresMatrixWeighted,1,sum)
+```
+
+The genes with the highest integrated score is:
+
+```{r}
+TopGene<-names(IntegratedScores[which(IntegratedScores==max(IntegratedScores))])
+IntegratedScores[TopGene]
+```
+
+The weighted scores of this gene are:
+
+```{r}
+ScoresMatrixWeighted[TopGene,]
+```
+
+The orignial scores of this gene are:
+
+```{r}
+ScoresMatrix[TopGene,]
+```
+
+## Significance
+
+We compute a False Discovery Rate for our integrated score
+
+```{r}
+Permutation<-function(x,Score,weights){
+  s1<-sample(Score[,1],replace=F)
+  s2<-sample(Score[,2],replace=F)
+  s3<-sample(Score[,3],replace=F)
+  s4<-sample(Score[,4],replace=F)
+  s5<-sample(Score[,5],replace=F)
+  return(max(s1*weights[1]+s2*weights[2]+s3*weights[3]+s4*weights[4]+s5*weights[5]))
+}
+
+# Number of permuation to run
+appliedlist<-as.list(seq(1,ScorePermutation))
+
+# Performe permutations
+maxvalues<-mclapply(appliedlist,Permutation,ScoresMatrixRescaled,weights,mc.cores=CORES)
+maxvalues<-as.numeric(maxvalues)
+
+# Compute fdr
+fdr<-c()
+	for (i in IntegratedScores){
+	  fdr<-c(fdr,-log10(as.numeric(length(maxvalues[maxvalues>i])+1)/(length(maxvalues)+1)))
+}
+
+names(fdr)<-names(IntegratedScores)
+```
+
+FDR for our top gene [-log10]
+
+```{r}
+fdr[TopGene]
+```
+
+# <span style="color:green">Results</span>
+
+## Top ranked genes overall
+
+Display the top 3 genes for our scoring:
+
+```{r}
+Top5Genes<-names(IntegratedScores[order(IntegratedScores,decreasing = T)])[1:5]
+DFTop5Genes<-ScoresMatrixWeighted[Top5Genes,]
+DFTop5Genes<-as.data.frame(DFTop5Genes)
+DFTop5Genes$IntegratedScore<-as.vector(IntegratedScores[Top5Genes])
+DFTop5Genes$FDR<-fdr[Top5Genes]
+DFTop5Genes<-round(DFTop5Genes,3)
+DFTop5Genes<-cbind(Top5Genes,DFTop5Genes)
+DFTop5Genes
+```
+
+```{r}
+TopAll<-names(IntegratedScores[order(IntegratedScores,decreasing = T)])
+DFTopAll<-ScoresMatrixWeighted[TopAll,]
+DFTopAll<-as.data.frame(DFTopAll)
+DFTopAll$IntegratedScore<-as.vector(IntegratedScores[TopAll])
+DFTopAll$FDR<-fdr[TopAll]
+DFTopAll<-round(DFTopAll,3)
+DFTopAll<-cbind(TopAll,DFTopAll)
+DFTopAll
+```
+
+
+```{r}
+OutputScore<-paste(gsub(".Rmd",'',opt$input),opt$id,opt$condition,opt$tissu,opt$phenotypetype,opt$weighting,opt$discretization,"Scoretable.txt",sep=".")
+write.table(DFTopAll,file=OutputScore,sep="\t",col.names=T,row.names=T,quote=F)
+
+OutputScore<-paste(gsub(".Rmd",'',opt$input),opt$id,opt$condition,opt$tissu,opt$phenotypetype,opt$weighting,opt$discretization,"Weighttable.txt",sep=".")
+write.table(weights,file=OutputScore,sep="\t",quote=F)
+```
+
+## Top ranked genes within QTL interval
+
+Top ranked gene under our QTL
+
+
+```{r,fig.height=8,fig.width=8}
+ for (i in 1:nrow(QTLsPeaks)){
+   Start<-QTLsPeaks[i,"MbStart"]
+   End<-QTLsPeaks[i,"MbEnd"]
+   ylim1<-0
+   ylim2<-5
+   chr<-as.character(QTLsPeaks[i,"Chr"])
+   if (! chr %in% names(QTLMB[["geno"]]) && chr == "20"){chr<-"X"}
+   chro<-QTLMB[["geno"]][[chr]][["map"]]
+   Chromosome<-paste("chr",chr,sep="")
+   
+   
+  OutputScore<-paste(gsub(".Rmd",'',opt$input),opt$id,opt$condition,opt$tissu,opt$phenotypetype,opt$weighting,opt$discretization,sep=".")
+   save(Start,End,fdr,chro,QTL.scan,ylim1,ylim2,SignifThresh,Chromosome,file=paste(OutputScore,chr,i,"Rdata",sep="."))
+   
+   maintext<-paste("Gene Scoring on chromosome:",chr)
+   
+ScorePlot(p1=Start-1,p2=End+1,PermResults=fdr,chro=chro,scan=QTL.scan,Main=maintext,ylim1=ylim1,ylim2=ylim2,SignifThresh,scorescale=1,Chromosome=Chromosome,Nomarker=T)
+
+  pdf(file=paste(OutputScore,chr,i,"pdf",sep="."),width = 10,height = 5)
+  ScorePlot(p1=Start-1,p2=End+1,PermResults=fdr,chro=chro,scan=QTL.scan,Main=maintext,ylim1=ylim1,ylim2=ylim2,SignifThresh,scorescale=1,Chromosome=Chromosome,Nomarker=T)
+  dev.off()
+
+#   # rank on this QTL
+#   # RankAll<-rank(-IntegratedScores)
+#   # IntegratedScoresInQTL<-IntegratedScores[genes]
+#   # Top5InQTL<-names(IntegratedScoresInQTL[order(IntegratedScoresInQTL,decreasing = T)])[1:5]
+#   # DFTop5Genes<-ScoresMatrixWeighted[Top5InQTL,]
+#   # DFTop5Genes<-as.data.frame(DFTop5Genes)
+#   # DFTop5Genes$IntegratedScore<-as.vector(IntegratedScores[Top5InQTL])
+#   # DFTop5Genes$FDR<-fdr[Top5InQTL]
+#   # DFTop5Genes$RankAll<-RankAll[Top5InQTL]
+#   # DFTop5Genes<-round(DFTop5Genes,3)
+#   # DFTop5Genes<-cbind(Top5InQTL,DFTop5Genes)
+#   # DFTop5Genes
+}
+```
+
+*Details about the Score Plot function use:*
+```{r,code=readLines(paste(SCRIPTDIR,"ScorePlot2.R",sep=''))}
+```
+
+```{r}
+OutputScore<-paste(gsub(".Rmd",'',opt$input),opt$id,opt$condition,opt$tissu,opt$phenotypetype,opt$weighting,opt$discretization,"Rdata",sep=".")
+save(IntegratedScores,ScoresMatrixWeighted,fdr,weights,file=OutputScore)
+```
+
+# Session information for this run
+
+```{r}
+sessionInfo()
+```
+
+
+Information:
+
+n3d id: 240
+del1_rat id: 96
+del2_r id: 98
+TPF_l1d id: 152
+
+

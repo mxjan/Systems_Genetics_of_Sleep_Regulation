@@ -1,0 +1,139 @@
+---
+title: "Normalization"
+author: "Nastassia Gobet, Maxime Jan"
+date: '31 Jan 2018 - '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: sandstone
+    toc: yes
+    toc_depth: 4
+    df_print: paged
+    rows.print: 6
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r}
+library(edgeR)
+```
+
+```{r}
+RNA<-read.table("../../../Data/Exome/GSE114845-expression.txt.txt",header=T,stringsAsFactors = F)
+Meta<-read.table("../../../Data/Exome/GSE114845-metadata.txt.txt",sep="\t",header=T,stringsAsFactors = F)
+```
+
+
+```{r}
+Meta$oldname<-Meta$genotype
+Meta$oldname<-gsub("BXD/TyJ","BXD",Meta$oldname)
+Meta$oldname<-gsub("BXD/RwwJ","BXD",Meta$oldname)
+Meta$oldname[grepl("B61",Meta$Sample.Title)]<-"B61"
+Meta$oldname[grepl("B62",Meta$Sample.Title)]<-"B62"
+Meta$oldname[grepl("DB1",Meta$Sample.Title)]<-"DB1"
+Meta$oldname[grepl("DB2",Meta$Sample.Title)]<-"DB2"
+Meta$oldname[grepl("DB2",Meta$Sample.Title)]<-"DB2"
+Meta$oldname[grepl("DB",Meta$Sample.Title) & Meta$genotype %in% "DBA/2J x C57/BL/J F1"]<-"DB"
+Meta$oldname[grepl("BD",Meta$Sample.Title) & Meta$genotype %in% "C57/BL/J x DBA/2J F1"]<-"BD"
+Meta$oldname<-gsub("BXD ","BXD",Meta$oldname)
+Meta$oldname[grepl("BXD73b",Meta$oldname)]<-"BXD103"
+Meta$oldname[grepl("BXD48a",Meta$oldname)]<-"BXD96"
+Meta$oldname[grepl("BXD65a",Meta$oldname)]<-"BXD97"
+
+Meta$oldname<-gsub("BXD","BXD0",Meta$oldname)
+Meta$oldname<-gsub("BXD0100","BXD100",Meta$oldname)
+Meta$oldname<-gsub("BXD0101","BXD101",Meta$oldname)
+Meta$oldname<-gsub("BXD0103","BXD103",Meta$oldname)
+```
+
+
+```{r}
+rownames(Meta)<-Meta$Sample_geo_accession
+```
+
+
+```{r}
+RNA_cortex<-RNA[,Meta$Sample_geo_accession[Meta$tissue == "Cortex" ]]
+dim(RNA_cortex)
+Meta_cortex<-Meta[Meta$tissue == "Cortex" ,]
+
+RNA_liver<-RNA[,Meta$Sample_geo_accession[Meta$tissue == "Liver"]]
+dim(RNA_liver)
+Meta_liver<-Meta[Meta$tissue == "Liver",]
+```
+
+
+
+```{r}
+dC <- DGEList(counts=RNA_cortex)
+dL <- DGEList(counts=RNA_liver)
+
+filt<-rowSums(cpm(dC)>0.5)>=20
+dC<-dC[filt,]
+rownames(dC)<-RNA$gene_symbol[filt]
+dim(dC)
+
+filt<-rowSums(cpm(dL)>0.5)>=20
+dL<-dL[filt,]
+rownames(dL)<-RNA$gene_symbol[filt]
+dim(dL)
+```
+
+```{r}
+dC <- calcNormFactors(dC, method="TMM")
+dC <- estimateCommonDisp(dC, verbose=TRUE)
+dL <- calcNormFactors(dL, method="TMM")
+dL <- estimateCommonDisp(dL, verbose=TRUE)
+```
+
+```{r}
+cnsd<-dC[,Meta_cortex$condition == "Control"]
+csd<-dC[,Meta_cortex$condition == "Sleep Deprived"]
+lnsd<-dL[,Meta_liver$condition == "Control"]
+lsd<-dL[,Meta_liver$condition == "Sleep Deprived"]
+
+cnsdcpm<-data.frame(cpm(cnsd, normalized.lib.sizes=TRUE))
+csdcpm<-data.frame(cpm(csd, normalized.lib.sizes=TRUE))
+lnsdcpm<-data.frame(cpm(lnsd, normalized.lib.sizes=TRUE))
+lsdcpm<-data.frame(cpm(lsd, normalized.lib.sizes=TRUE))
+```
+
+```{r}
+colnames(cnsdcpm)<-Meta[colnames(cnsdcpm),"oldname"]
+colnames(csdcpm)<-Meta[colnames(csdcpm),"oldname"]
+colnames(lnsdcpm)<-Meta[colnames(lnsdcpm),"oldname"]
+colnames(lsdcpm)<-Meta[colnames(lsdcpm),"oldname"]
+
+
+write.table(cnsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Cortex_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(csdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Cortex_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(lnsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Liver_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(lsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Liver_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+```
+
+Log2
+
+```{r}
+cnsdcpm<-data.frame(cpm(cnsd, normalized.lib.sizes=TRUE,log=T,prior.count = 1))
+csdcpm<-data.frame(cpm(csd, normalized.lib.sizes=TRUE,log=T,prior.count = 1))
+lnsdcpm<-data.frame(cpm(lnsd, normalized.lib.sizes=TRUE,log=T,prior.count = 1))
+lsdcpm<-data.frame(cpm(lsd, normalized.lib.sizes=TRUE,log=T,prior.count = 1))
+
+colnames(cnsdcpm)<-Meta[colnames(cnsdcpm),"oldname"]
+colnames(csdcpm)<-Meta[colnames(csdcpm),"oldname"]
+colnames(lnsdcpm)<-Meta[colnames(lnsdcpm),"oldname"]
+colnames(lsdcpm)<-Meta[colnames(lsdcpm),"oldname"]
+
+
+write.table(cnsdcpm, file="../../../Data/Exome/edgeR_normalized_log2CPM_Cortex_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(csdcpm, file="../../../Data/Exome/edgeR_normalized_log2CPM_Cortex_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(lnsdcpm, file="../../../Data/Exome/edgeR_normalized_log2CPM_Liver_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(lsdcpm, file="../../../Data/Exome/edgeR_normalized_log2CPM_Liver_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+```
+

@@ -1,0 +1,245 @@
+---
+title: "Differential Expression mm10"
+author: "Nastassia Gobet, Maxime Jan"
+date: '31 Jan 2018 - '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: sandstone
+    toc: yes
+    toc_depth: 4
+    df_print: paged
+    rows.print: 6
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+
+# Libraries
+
+```{r}
+library(limma)
+library(edgeR)
+library(reshape2)
+library(vioplot)
+```
+
+# Read data
+
+Data generated using biojupies with and GEO: GSE114845
+
+https://amp.pharm.mssm.edu/biojupies
+
+```{r}
+RNA<-read.table("../../../Data/Exome/GSE114845-expression.txt.txt",header=T,stringsAsFactors = F)
+Meta<-read.table("../../../Data/Exome/GSE114845-metadata.txt.txt",sep="\t",header=T,stringsAsFactors = F)
+```
+
+
+```{r}
+Meta$oldname<-Meta$genotype
+Meta$oldname<-gsub("BXD/TyJ","BXD",Meta$oldname)
+Meta$oldname<-gsub("BXD/RwwJ","BXD",Meta$oldname)
+Meta$oldname[grepl("B61",Meta$Sample.Title)]<-"B61"
+Meta$oldname[grepl("B62",Meta$Sample.Title)]<-"B62"
+Meta$oldname[grepl("DB1",Meta$Sample.Title)]<-"DB1"
+Meta$oldname[grepl("DB2",Meta$Sample.Title)]<-"DB2"
+Meta$oldname[grepl("DB2",Meta$Sample.Title)]<-"DB2"
+Meta$oldname[grepl("DB",Meta$Sample.Title) & Meta$genotype %in% "DBA/2J x C57/BL/J F1"]<-"DB"
+Meta$oldname[grepl("BD",Meta$Sample.Title) & Meta$genotype %in% "C57/BL/J x DBA/2J F1"]<-"BD"
+Meta$oldname<-gsub("BXD ","BXD",Meta$oldname)
+Meta$oldname[grepl("BXD73b",Meta$oldname)]<-"BXD103"
+Meta$oldname[grepl("BXD48a",Meta$oldname)]<-"BXD96"
+Meta$oldname[grepl("BXD65a",Meta$oldname)]<-"BXD97"
+
+Meta$oldname<-gsub("BXD","BXD0",Meta$oldname)
+Meta$oldname<-gsub("BXD0100","BXD100",Meta$oldname)
+Meta$oldname<-gsub("BXD0101","BXD101",Meta$oldname)
+Meta$oldname<-gsub("BXD0103","BXD103",Meta$oldname)
+```
+
+```{r}
+rownames(Meta)<-Meta$Sample_geo_accession
+```
+
+
+# DE
+
+
+```{r}
+RNA_cortex<-RNA[,Meta$Sample_geo_accession[Meta$tissue == "Cortex" ]]
+dim(RNA_cortex)
+Meta_cortex<-Meta[Meta$tissue == "Cortex" ,]
+
+RNA_liver<-RNA[,Meta$Sample_geo_accession[Meta$tissue == "Liver"]]
+dim(RNA_liver)
+Meta_liver<-Meta[Meta$tissue == "Liver",]
+```
+
+
+## Filtering
+
+We filter for more than 10 read per gene 
+
+```{r}
+filt<-apply(RNA_cortex,1,mean)>10
+RNA_cortex<-RNA_cortex[filt,]
+rownames(RNA_cortex)<-RNA$gene_symbol[filt]
+dim(RNA_cortex)
+
+filt<-apply(RNA_liver,1,mean)>10
+RNA_liver<-RNA_liver[filt,]
+rownames(RNA_liver)<-RNA$gene_symbol[filt]
+dim(RNA_liver)
+```
+
+Create dge object
+
+```{r}
+dC <- DGEList(counts=RNA_cortex)
+dL <- DGEList(counts=RNA_liver)
+```
+
+Calculate normalization factor
+
+```{r}
+dC <- calcNormFactors(dC, method="TMM")
+dL <- calcNormFactors(dL, method="TMM")
+```
+
+```{r}
+vioplot(dC$samples$norm.factors, col="white", horizontal=TRUE, names="")
+title(main="Distribution of normalisation factors for cortex", xlab="Normalisation factors")
+
+vioplot(dL$samples$norm.factors, col="white", horizontal=TRUE, names="")
+title(main="Distribution of normalisation factors for liver", xlab="Normalisation factors")
+```
+
+Get CPMs
+
+```{r}
+normalizedCPMcountsC <- data.frame(cpm(dC, normalized.lib.sizes=TRUE))
+normalizedCPMcountsL <- data.frame(cpm(dL, normalized.lib.sizes=TRUE))
+
+# cnsd<-dC[,Meta_cortex$condition == "Control"]
+# csd<-dC[,Meta_cortex$condition == "Sleep Deprived"]
+# lnsd<-dC[,Meta_liver$condition == "Control"]
+# lsd<-dC[,Meta_liver$condition == "Sleep Deprived"]
+# 
+# cnsdcpm<-data.frame(cpm(cnsd, normalized.lib.sizes=TRUE))
+# csdcpm<-data.frame(cpm(csd, normalized.lib.sizes=TRUE))
+# lnsdcpm<-data.frame(cpm(lnsd, normalized.lib.sizes=TRUE))
+# lsdcpm<-data.frame(cpm(lsd, normalized.lib.sizes=TRUE))
+```
+
+
+Write results
+
+```{r}
+# colnames(normalizedCPMcountsC)<-Meta[colnames(normalizedCPMcountsC),"oldname"]
+# colnames(normalizedCPMcountsL)<-Meta[colnames(normalizedCPMcountsL),"oldname"]
+# 
+# colnames(cnsdcpm)<-Meta[colnames(cnsdcpm),"oldname"]
+# colnames(csdcpm)<-Meta[colnames(csdcpm),"oldname"]
+# colnames(lnsdcpm)<-Meta[colnames(lnsdcpm),"oldname"]
+# colnames(lsdcpm)<-Meta[colnames(lsdcpm),"oldname"]
+
+# write.table(normalizedCPMcountsC, file="../../../Data/Exome/edgeR_normalized_CPM_Cortex.tab", row.names=TRUE, sep="\t", quote=FALSE)
+# write.table(normalizedCPMcountsL, file="../../../Data/Exome/edgeR_normalized_CPM_Liver.tab", row.names=TRUE, sep="\t", quote=FALSE)
+# 
+# write.table(cnsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Cortex_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+# write.table(csdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Cortex_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+# write.table(lnsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Liver_NSD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+# write.table(lsdcpm, file="../../../Data/Exome/edgeR_normalized_CPM_Liver_SD.tab", row.names=TRUE, sep="\t", quote=FALSE)
+```
+
+```{r}
+plotMDS(normalizedCPMcountsC, main="MDS in cortex", top=500, labels=Meta_cortex$condition, col=as.numeric(as.factor(Meta_cortex$genotype)), gene.selection="common")
+plotMDS(normalizedCPMcountsL, main="MDS in liver", top=500, labels=Meta_liver$condition, col=as.numeric(as.factor(Meta_liver$genotype)), gene.selection="common")
+```
+
+## DE
+
+model:
+
+```{r}
+condsC <- factor(Meta_cortex$condition)
+strainC <- factor(Meta_cortex$genotype)
+designC <- model.matrix(~strainC+condsC)
+
+condsL <- factor(Meta_liver$condition)
+strainL <- factor(Meta_liver$genotype)
+designL <- model.matrix(~strainL+condsL)
+```
+
+voom
+
+```{r}
+resC <- voom(RNA_cortex, designC, plot=TRUE, lib.size=colSums(RNA_cortex)*dC$samples$norm.factors)
+resL <- voom(RNA_liver, designL, plot=TRUE, lib.size=colSums(RNA_liver)*dL$samples$norm.factors)
+```
+
+```{r}
+fitC <- lmFit(resC, designC)
+fitC2 <- eBayes(fitC)
+
+fitL <- lmFit(resL, designL)
+fitL2 <- eBayes(fitL)
+```
+
+```{r}
+resultTableC <- topTable(fitC2, coef="condsCSleep Deprived", adjust.method="fdr", sort.by="B", number=1000000)
+resultTableL <- topTable(fitL2, coef="condsLSleep Deprived", adjust.method="fdr", sort.by="B", number=1000000)
+```
+
+```{r}
+nrow(resultTableC[resultTableC$adj.P.Val<=0.05,])
+nrow(resultTableC[resultTableC$adj.P.Val<=0.05,])/nrow(resultTableC)
+```
+
+```{r}
+nrow(resultTableL[resultTableL$adj.P.Val<=0.05,])
+nrow(resultTableL[resultTableL$adj.P.Val<=0.05,])/nrow(resultTableL)
+```
+
+
+```{r}
+resultTableC[order(abs(resultTableC$logFC),decreasing = T),]
+```
+
+
+```{r}
+resultTableL[order(abs(resultTableL$logFC),decreasing = T),]
+```
+
+
+```{r}
+resultTableL["Tceanc2",]
+```
+
+
+```{r}
+pcol<-rep("black",nrow(resultTableC))
+pcol[resultTableC$adj.P.Val<=0.05]<-"red"
+plot(rank(resultTableC$adj.P.Val),resultTableC$logFC,pch=19,col=pcol)
+
+pcol<-rep("black",nrow(resultTableL))
+pcol[resultTableL$adj.P.Val<=0.05]<-"red"
+plot(rank(resultTableL$adj.P.Val),resultTableL$logFC,pch=19,col=pcol)
+```
+
+```{r}
+write.table(file="../../../Data/IntermediateLayer/DE/Limma_Cortex.txt",resultTableC,quote=F,sep="\t",col.names = T,row.names = T)
+write.table(file="../../../Data/IntermediateLayer/DE/Limma_Liver.txt",resultTableL,quote=F,sep="\t",col.names = T,row.names = T)
+```
+
+
+
+
+

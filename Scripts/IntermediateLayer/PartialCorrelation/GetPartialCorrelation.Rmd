@@ -1,0 +1,111 @@
+---
+title: "Get Partial Correlation"
+author: "Nastassia Gobet, Maxime Jan"
+date: '31 Jan 2018 - '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: sandstone
+    toc: yes
+    toc_depth: 4
+    df_print: paged
+    rows.print: 6
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r}
+# source("BXDpcor.R")
+# library(RcppEigen)
+# library(parallel)
+```
+
+
+Read data
+
+```{r}
+load("../../../Data/Phenome/SleepPhenotype3.Rdata")
+CSD<-read.table("../../../Data/Exome/edgeR_normalized_log2CPM_Cortex_SD.tab",header=T,row.names=1)
+CSD<-CSD[,rownames(traitData)]
+LSD<-read.table("../../../Data/Exome/edgeR_normalized_log2CPM_Liver_SD.tab",header=T,row.names=1)
+LSD<-LSD[,rownames(traitData)]
+CNSD<-read.table("../../../Data/Exome/edgeR_normalized_log2CPM_Cortex_NSD.tab",header=T,row.names=1)
+CNSD<-CNSD[,rownames(traitData)]
+LNSD<-read.table("../../../Data/Exome/edgeR_normalized_log2CPM_Liver_NSD.tab",header=T,row.names=1)
+LNSD<-LNSD[,rownames(traitData)]
+
+qcisLSD<-read.table("../../../Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.SD.pvalcorrected.txt") 
+qcisCSD<-read.table("../../../Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.SD.pvalcorrected.txt") 
+qcisLNSD<-read.table("../../../Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.NSD.pvalcorrected.txt") 
+qcisCNSD<-read.table("../../../Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.NSD.pvalcorrected.txt") 
+```
+
+```{r}
+formatData<-function(Expr,cis){
+  Strains<-colnames(Expr)
+  GenotypeMatrix<-read.table("../../../Data/Genome/GNmm10.newgenotypes_subset_sorted.geno",header=T)
+  Genepos<-read.table("../../../Data/Exome/GenePosition.txt",header=T)
+  Genepos[,1]<-gsub("chr",'',Genepos[,1])
+  Genepos<-Genepos[as.character(rownames(Expr)),]
+  cisv<-cis[,2]
+  names(cisv)<-rownames(cis)
+  cisv<-as.character(cisv[rownames(Expr)])
+  names(cisv)<-as.character(rownames(Expr))
+  
+  Notincis<-c()
+  
+  for (gene in names(cisv[is.na(cisv)])){
+    if (gene %in% rownames(cis)){
+      chr<-Genepos[gene,1]
+      pos<-Genepos[gene,2]
+      tmpGM<-GenotypeMatrix[GenotypeMatrix[,1]==chr,]
+      tmpGM[,4]<-abs(pos-tmpGM[,4])
+      cisv[gene]<-as.character(tmpGM[which(tmpGM[,4]==min(tmpGM[,4])),2])
+    }else {Notincis<-c(Notincis,gene)}
+  }
+  cisvfinal<-cisv[-which(names(cisv) %in% Notincis)]
+  Exprfinal<-Expr[-which(rownames(Expr) %in% Notincis),]
+  return(list(Exprfinal,cisvfinal))
+}
+```
+
+```{r}
+form<-formatData(CSD,qcisCSD)
+CSDformated<-form[[1]]
+cisCSDformated<-form[[2]]
+
+form<-formatData(LSD,qcisLSD)
+LSDformated<-form[[1]]
+cisLSDformated<-form[[2]]
+
+form<-formatData(CNSD,qcisCNSD)
+CNSDformated<-form[[1]]
+cisCNSDformated<-form[[2]]
+
+form<-formatData(LNSD,qcisLNSD)
+LNSDformated<-form[[1]]
+cisLNSDformated<-form[[2]]
+```
+
+```{r}
+GenotypeMatrix<-read.table("../../../Data/Genome/GNmm10.newgenotypes_subset_sorted.geno",header=T)
+Nmarker<-as.character(GenotypeMatrix$Locus)
+GenotypeMatrix<-GenotypeMatrix[,colnames(LSDformated)]
+rownames(GenotypeMatrix)<-Nmarker
+```
+
+
+Run on server
+
+```{r}
+save(CSDformated,cisCSDformated,LSDformated,cisLSDformated,CNSDformated,cisCNSDformated,LNSDformated,cisLNSDformated,GenotypeMatrix,file="pcorInputData.Rdata")
+#t<-BXDpcor(CSDformated,cisCSDformated,LSDformated,cisLSDformated,GenotypeMatrix,CORES=8,method="spearman")
+#save(t,file="/scratch/beegfs/monthly/mjan/pcor_spearman_CortexSD_LiverSD.Rdata")
+```
+

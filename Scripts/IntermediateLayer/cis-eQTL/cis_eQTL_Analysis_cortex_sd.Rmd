@@ -1,0 +1,157 @@
+---
+title: "cis-eQTL analysis"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+```{r,echo=T,warning=F,error=F,message=F}
+PATH<-"/scratch/beegfs/monthly/SleepRegulation/BXD/"
+SCRIPTDIR<-paste(PATH,"scripts/",sep="")
+OutputName<-"Cortex.SD" 
+ExpressionFile<-"/scratch/beegfs/monthly/SleepRegulation/BXD/BXD_mm10/exome/edgeR_normalized_log2CPM_Cortex_SD.tab"
+library(qvalue)
+
+# load software
+system("module add UHTS/Analysis/EPACTS/3.2.6;")
+
+```
+
+# Read files
+
+Genotype
+
+The genotype is taken from GeneNetwork and variant calling on our expression calling.
+
+```{r}
+Geno<-read.table("/scratch/beegfs/monthly/SleepRegulation/BXD/BXD_mm10/genome/GNmm10.newgenotypes_subset_sorted.geno",header=TRUE)
+```
+
+Expression.
+
+```{r}
+Expr<-read.table(ExpressionFile)
+```
+
+Ndufa12 had to be removed to avoid an error in FastQTL during beta parameter estimation for Cortex.SD
+Mettl25 for LNSD and LSD
+
+```{r}
+PhenoExclude<-"/scratch/beegfs/monthly/SleepRegulation/BXD/BXD_mm10/cis-eQTL/Cortex_sd/TranscripteQTLExclude.txt"
+system(paste("echo NOGENETOREMOVE >",PhenoExclude))
+```
+
+
+# Filter
+
+Mice processed for cis-eQTL analysis:
+
+```{r}
+Mice<-colnames(Geno)[-which(colnames(Geno) %in% c("Chr","Locus","cM","Mb","BXD005","BXD029","BXD032","BXD063"))]
+Mice
+```
+
+Create genotype file filtered
+
+```{r}
+MiceGeno<-c("Chr","Locus","cM","Mb",Mice)
+GenoSelect<-matrix(nrow=nrow(Geno),ncol=0)
+for (i in MiceGeno){
+  GenoSelect<-cbind(GenoSelect,Geno[,i,drop=F])
+}
+write.table(GenoSelect,file="BXDGenotypes.geno",sep='\t',row.names = F,col.names = T,quote=F)
+GenotypeData<-"BXDGenotypes.geno"
+
+GenoSelect[GenoSelect$Locus=="novel_2_142445090",]
+```
+
+Filter Expression file
+
+```{r}
+ExprSelect<-matrix(nrow=nrow(Expr),ncol=0)
+for (i in Mice){
+  ExprSelect<-cbind(ExprSelect,Expr[,i,drop=F])
+}
+write.table(ExprSelect,"Expression.txt",sep='\t',row.names = T,col.names = T,quote=F)
+ExpressionData<-"Expression.txt"
+```
+
+
+# Run cis-eQTL analysis
+
+Python scripts are used for format conversion !
+
+The genotype file is converted into a vcf and compressed
+
+```{r}
+system(paste(paste(SCRIPTDIR,"GenoToVcf.py",sep=''),GenotypeData,paste(GenotypeData,'.vcf',sep='')))
+system(paste("bgzip -f",paste(GenotypeData,'.vcf',sep=''),"&& tabix -p vcf",paste(GenotypeData,'.vcf.gz',sep='')))
+```
+
+
+The expression file is converted into a bed format (UCSC bed format) and compressed
+
+```{r}
+system(paste(paste(SCRIPTDIR,"Create_BED_UCSC_mm10.py",sep=''),ExpressionData,GenotypeData,paste(ExpressionData,'.bed',sep='')))
+system(paste("bgzip -f",paste(ExpressionData,'.bed',sep=''),"&& tabix -p bed",paste(ExpressionData,'.bed.gz',sep='')))
+```
+
+cis-eQTL analysis run with FastQTL
+
+* Version used of FastQTL: 2.184
+
+* FastQTL run by 25 chunks with following option: --window 2e6 --permute 1000 --seed 1 --normal
+
+```{r}
+system(paste(paste(SCRIPTDIR,"ciseQTLAnalysis.sh",sep=''),paste(GenotypeData,'.vcf.gz',sep=''),paste(ExpressionData,'.bed.gz',sep=''),OutputName,PhenoExclude,"1>Errors.txt"))
+##system(paste(paste(SCRIPTDIR,"ciseQTLAnalysis.sh",sep=''),paste(GenotypeData,'.vcf.gz',sep=''),paste(ExpressionData,'.bed.gz',sep=''),OutputName,"1>Errors.txt"))
+```
+
+# Add some remove gene base on other method
+
+The analysis was done with not log expression data for Stab2
+
+```{r}
+##if (OutputName == "Cortex.SD"){
+##  system(paste("echo 'Stab2 19 0.711218 1.41551 41.9348 rs29341107 842923 0.00261049 6.13439 0.000999001 0.00547887' >>",paste("ciseQTL",OutputName,"txt",sep=".")))
+##} else if (OutputName == "Liver.SD"){
+##  system(paste("echo 'Stab2 15 0.898049 2.24287 36.1828 rs30246660 93718 4.02702e-05 -42.0118 0.001998 6.18041e-05' >>",paste("ciseQTL",OutputName,"txt",sep=".")))
+##}
+##else if (OutputName == "Liver.NSD") {
+##  system(paste("echo 'Mettl25 14 0.661272 1.53274 39.0164 rs13480754 1720942 0.186722 2.11639 0.272727 0.359007' >>",paste("ciseQTL",OutputName,"txt",sep=".")))
+##}
+```
+
+
+
+# Multiple test correction
+
+Here we use the qvalue package as suggested by FastQTL authors
+
+```{r}
+cisResult<-read.table(paste("ciseQTL",OutputName,"txt",sep="."))
+
+# remove a duplicated gene Cdkn2d
+cisResult<-cisResult[!duplicated(cisResult$V1),]
+
+# selects column with p-value (adjusted for different variants tested for this gene) and id of the best variant
+cisResultqvalue<-cisResult[,c("V11","V6")]
+cisResultqvalue$V11<-qvalue(cisResult$V11)$qvalues
+rownames(cisResultqvalue)<-cisResult$V1
+colnames(cisResultqvalue)<-c("adjustedpvalue","marker")
+cisResultqvalue$adjustedpvalue[is.na(cisResultqvalue$adjustedpvalue)]<-1
+
+write.table(cisResultqvalue,file=paste("ciseQTL",OutputName,"pvalcorrected.txt",sep="."),quote=F,row.names = T,col.names = T,sep="\t")
+```
+
+
+# Session information for this run
+
+```{r}
+sessionInfo()
+```

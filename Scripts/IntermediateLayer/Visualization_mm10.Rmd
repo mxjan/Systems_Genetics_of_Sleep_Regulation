@@ -1,0 +1,349 @@
+---
+title: 'BXD reproducibility with mm10: visualization'
+author: "Nastassia Gobet, Maxime Jan"
+date: '1 February 2019 '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: readable
+    toc: yes
+    toc_depth: 4
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, fig.path = "//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Graphs/",warning=TRUE)
+
+#load needed libraries
+library(knitr)
+##library(vioplot)
+library(reshape)
+
+#working directory: setwd("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Scripts/IntermediateLayer/")
+```
+
+
+# Plan
+
+The goal is to reproduce and assess key steps from Diessler, S. et al. A systems genetics resource and analysis of sleep regulation in the mouse. PLOS Biology 16, e2005750 (2018) using mm10 instead of mm10
+
+* lower-level steps:
+    * eQTL detection with fastQTL (check Fig2c)
+    * differential gene expression (check Fig4c) with R script: limma_RNA.R
+    * phQTL detection with R/qtl (4 examples)
+    * mQTL detection with R/qtl (2 examples)
+* higher-layer:
+    * gene prioritization for the 4 examples
+    1) _Wrn_ for delta1-power gain in NREM sleep
+    2) _Kif16b_ for delta2-power gain in NREM sleep
+    3) _Cyp4a32_ for thetha frequency in REM sleep
+    4) _Acott11_ for compensation for NREM sleep time lost
+    * hiveplots vizualisation
+
+
+# Analysis
+
+## eQTL detection
+
+
+### Software
+The eQTL detection was performed with fastQTL version 2.184 using default parameters, except for:
+
+* used the beta distribution approximation estimated from 1000 permutations to calculate adjusted p-values (--permute 1000, no default)
+* tests association for a molecular phenotype only for variants that are 2 Mb above or below the transcription start site of the gene coding for the phenotype (--window 2e6, default is 1e6)
+* chose to use seed one to help reproducibility of permutations (--seed 1, no default)
+
+* Ndufa12 had to be removed to avoid an error in FastQTL during beta parameter estimation for Cortex.SD. Same with Mettl25 for LNSD and LSD. The reason of this error is not completely understood. The fastQTL was run separately for them on not log CPM data, and the output was added before the qvalues calculation.
+
+
+### Visualization
+
+Trying to reproduce the venn diagram (Figure 2c) with the newly calculated data.
+
+```{r}
+#loading needed library
+##install.packages("VennDiagram")
+library(VennDiagram)
+# load files with qvalues of genes for cis-eQTL expression
+ceLNSD<-read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.NSD.pvalcorrected.txt",sep='')
+ceLSD<-read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.SD.pvalcorrected.txt",sep='')
+ceCNSD<-read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.NSD.pvalcorrected.txt",sep='')
+ceCSD<-read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.SD.pvalcorrected.txt",sep='')
+```
+
+Check which genes have a q-value at 0.05 or below, and if they are also significant in liver/cortex for sd/nsd.
+
+```{r}
+# save the names of the rows (gene names)
+ceLNSDn<-rownames(ceLNSD)
+ceLSDn<-rownames(ceLSD)
+ceCNSDn<-rownames(ceCNSD)
+ceCSDn<-rownames(ceCSD)
+
+# selects gene names that are at 0.05 or below
+ceLNSDnp<-rownames(ceLNSD)[ceLNSD$adjustedpvalue<=0.05]
+ceLSDnp<-rownames(ceLSD)[ceLSD$adjustedpvalue<=0.05]
+ceCNSDnp<-rownames(ceCNSD)[ceCNSD$adjustedpvalue<=0.05]
+ceCSDnp<-rownames(ceCSD)[ceCSD$adjustedpvalue<=0.05]
+
+# check how many genes are at 0.05 or below
+length(ceLNSDnp)
+length(ceLSDnp)
+length(ceCNSDnp)
+length(ceCSDnp)
+
+# create a function that check is the gene is significant also in the other condition (sd or nsd)??
+OnInOtherNotsignif<-function(d1,d1p,d2,d2p,d3,d3p,d4,d4p){
+  nn<-d1[d1 %in% d1p & (d1 %in% d2 & ! d1 %in% d2p) & (d1 %in% d3 & ! d1 %in% d3p) & (d1 %in% d4 & ! d1 %in% d4p)]
+  return(nn)
+}
+
+# create a function that check is the gene is significant also in the other tissue (liver or cortex)??
+OnInOtherNotsignif_OppositeTissu<-function(d1,d1p,d2,d2p){
+  nn<-d1[d1 %in% d1p & (d1 %in% d2 & ! d1 %in% d2p)]
+  return(nn)
+}
+
+#??? divide by the number of uniquely significant genes per tissue and condition
+length(OnInOtherNotsignif(ceCSDn,ceCSDnp,ceCNSDn,ceCNSDnp,ceLSDn,ceLSDnp,ceLNSDn,ceLNSDnp))/872
+
+length(OnInOtherNotsignif(ceCNSDn,ceCNSDnp,ceCSDn,ceCSDnp,ceLSDn,ceLSDnp,ceLNSDn,ceLNSDnp))/727
+
+length(OnInOtherNotsignif(ceLSDn,ceLSDnp,ceCSDn,ceCSDnp,ceCNSDn,ceCNSDnp,ceLNSDn,ceLNSDnp))/314
+
+length(OnInOtherNotsignif(ceLNSDn,ceLNSDnp,ceCSDn,ceCSDnp,ceCNSDn,ceCNSDnp,ceLSDn,ceLSDnp))/553
+
+```
+
+
+Filtering
+
+```{r}
+ceLNSD<-rownames(ceLNSD)[ceLNSD$adjustedpvalue<=0.05]
+ceLSD<-rownames(ceLSD)[ceLSD$adjustedpvalue<=0.05]
+ceCNSD<-rownames(ceCNSD)[ceCNSD$adjustedpvalue<=0.05]
+ceCSD<-rownames(ceCSD)[ceCSD$adjustedpvalue<=0.05]
+```
+
+
+Venn Diagram
+
+```{r}
+# prepare parameters for the Venn diagram
+
+# areas
+a1<-length(ceCNSD)
+a2<-length(ceLNSD)
+a3<-length(ceCSD)
+a4<-length(ceLSD)
+
+# Intersections
+n12=length(ceCNSD[ceCNSD %in% ceLNSD])
+n13=length(ceCNSD[ceCNSD %in% ceCSD])
+n14=length(ceCNSD[ceCNSD %in% ceLSD])
+
+n23=length(ceLNSD[ceLNSD %in% ceCSD])
+n24=length(ceLNSD[ceLNSD %in% ceLSD])
+n34=length(ceCSD[ceCSD %in% ceLSD])
+
+n123=length(ceCNSD[ceCNSD %in% ceLNSD & ceCNSD %in% ceCSD])
+n124=length(ceCNSD[ceCNSD %in% ceLNSD & ceCNSD %in% ceLSD])
+n134=length(ceCNSD[ceCNSD %in% ceCSD & ceCNSD %in% ceLSD])
+n234=length(ceLNSD[ceLNSD %in% ceCSD & ceLNSD %in% ceLSD])
+
+n1234=length(ceCNSD[ceCNSD %in% ceCSD & ceCNSD %in% ceLNSD & ceCNSD %in% ceLSD])
+```
+
+```{r ciseQTL_VennDiagram}
+# plot the Venn diagram
+v<-draw.quad.venn(area1=a1,area2=a2,area3=a3,area4=a4,
+                  n12=n12,n13=n13,n14=n14,n23=n23,n24=n24,n34=n34,
+                  n123=n123,n124=n124,n134=n134,n234=n234,
+                  n1234=n1234,
+                  c("Cortex NSD","Liver NSD","Cortex SD","Liver SD"),
+                  fill = c("firebrick3", "gold", "cornflowerblue", "forestgreen"),
+                  col = "black", alpha=0.50,
+                  label.col = c("darkblue", "black", "darkgreen", "black", "black", "black", "black", "black", "darkred", "black", "black", "black", "black", "goldenrod4", "black"),
+                  cex=2, fontfamily = "serif", fontface = "bold",
+                  cat.col = c("darkred", "goldenrod4", "darkblue", "darkgreen"),
+                  cat.cex=1.2, font=2)
+```
+
+Explorate which genes are different between the published and the reproduced results
+
+```{r}
+# original data (=published)
+# load files with qvalues of genes for cis-eQTL expression
+ceLNSD_published <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Results/Reproduce_Figure2c/original_data/ciseQTL.Liver.NSD.pvalcorrected.txt",sep='')
+ceLSD_published <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Results/Reproduce_Figure2c/original_data/ciseQTL.Liver.SD.pvalcorrected.txt",sep='')
+ceCNSD_published <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Results/Reproduce_Figure2c/original_data/ciseQTL.Cortex.NSD.pvalcorrected.txt",sep='')
+ceCSD_published <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Results/Reproduce_Figure2c/original_data/ciseQTL.Cortex.SD.pvalcorrected.txt",sep='')
+
+# selects gene names that are at 0.05 or below
+ceLNSDnp_published <- rownames(ceLNSD_published)[ceLNSD_published$adjustedpvalue<=0.05]
+ceLSDnp_published <- rownames(ceLSD_published)[ceLSD_published$adjustedpvalue<=0.05]
+ceCNSDnp_published <- rownames(ceCNSD_published)[ceCNSD_published$adjustedpvalue<=0.05]
+ceCSDnp_published <- rownames(ceCSD_published)[ceCSD_published$adjustedpvalue<=0.05]
+
+# newly generated data (=reproduced)
+# load files with qvalues of genes for cis-eQTL expression
+ceLNSD_reproduced <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.NSD.pvalcorrected.txt",sep='')
+ceLSD_reproduced <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Liver.SD.pvalcorrected.txt",sep='')
+ceCNSD_reproduced <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.NSD.pvalcorrected.txt",sep='')
+ceCSD_reproduced <- read.table("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/BXD_mm10/Data/IntermediateLayer/cis-eQTL/ciseQTL.Cortex.SD.pvalcorrected.txt",sep='')
+
+
+# selects gene names that are at 0.05 or below
+ceLNSDnp_reproduced <- rownames(ceLNSD_reproduced)[ceLNSD_reproduced$adjustedpvalue<=0.05]
+ceLSDnp_reproduced <- rownames(ceLSD_reproduced)[ceLSD_reproduced$adjustedpvalue<=0.05]
+ceCNSDnp_reproduced <- rownames(ceCNSD_reproduced)[ceCNSD_reproduced$adjustedpvalue<=0.05]
+ceCSDnp_reproduced <- rownames(ceCSD_reproduced)[ceCSD_reproduced$adjustedpvalue<=0.05]
+
+# find the differences
+# for each category (condition and tissue) individually
+for(tissue in c("L","C")){
+  for(condition in c("SD","NSD")){
+    print(c(tissue,condition))
+    print(setdiff(eval(parse(text=paste("ce", tissue, condition, "np_published", sep=""))), eval(parse(text=paste("ce", tissue, condition, "np_reproduced", sep="")))))
+    print(setdiff(eval(parse(text=paste("ce", tissue, condition, "np_reproduced", sep=""))), eval(parse(text=paste("ce", tissue, condition, "np_published", sep="")))))
+  }
+}
+
+# for total unique eQTL
+tot_published <- c(ceLNSDnp_published, ceLSDnp_published, ceCNSDnp_published, ceCSDnp_published)
+tot_reproduced <- c(ceLNSDnp_reproduced, ceLSDnp_reproduced, ceCNSDnp_reproduced, ceCSDnp_reproduced)
+
+# list of genes interesting to look at
+list_genes <- c(setdiff(tot_reproduced, tot_published),setdiff(tot_published, tot_reproduced))
+length(list_genes)
+
+summary(ceLNSD_published[,"adjustedpvalue"]-ceLNSD_reproduced[rownames(ceLNSD_published),"adjustedpvalue"])
+head(ceLNSD_published)
+head(ceLNSD_reproduced[rownames(ceLNSD_published),])
+
+# calculate ratio of significant associations
+
+length(ceLNSDnp_reproduced)/length(ceLNSD_reproduced$adjustedpvalue)
+length(ceLSDnp_reproduced)/length(ceLSD_reproduced$adjustedpvalue)
+length(ceCNSDnp_reproduced)/length(ceCNSD_reproduced$adjustedpvalue)
+length(ceCSDnp_reproduced)/length(ceCSD_reproduced$adjustedpvalue)
+
+length(ceLNSDnp_published)/length(ceLNSD_published$adjustedpvalue)
+length(ceLSDnp_published)/length(ceLSD_published$adjustedpvalue)
+length(ceCNSDnp_published)/length(ceCNSD_published$adjustedpvalue)
+length(ceCSDnp_published)/length(ceCSD_published$adjustedpvalue)
+
+```
+
+
+## Differential gene expression
+
+Understand and explain principles used for gene expression.
+
+Reproducing Figure 4c
+
+### Loading data
+
+```{r}
+# loading newly generated datasets
+# load table with results of differential expression
+DEdata_cortex <- read.table('../../Data/IntermediateLayer/DE/Limma_Cortex.txt', sep="\t")
+DEdata_liver <- read.table('../../Data/IntermediateLayer/DE/Limma_Liver.txt', sep="\t")
+
+# loading reference list of 78 genes from (Mongrain, Sleep, 2010)
+list_78 <- read.table("../../Data/Exome/78RNA.txt", stringsAsFactors=FALSE)
+```
+
+### Functions
+
+```{r}
+# creating a function that plots a volcano plot
+
+volcano_plot <- function(xvariable, yvariable, labels, tissue, dversion, threshold=0.05){
+  # process data set
+  
+  dataset <- data.frame(x=xvariable, y=yvariable)
+  rownames(dataset) <- labels
+  
+  # sort the datset by adjusted p-value (lower to higher)
+  dataset_sorted <- sort_df(dataset,vars="x")
+
+  # selects transcripts with color
+  dataset_sorted$x_selected <- dataset_sorted$x<threshold
+
+  # selects rank of transcripts from 78 genes lists
+  list_78_rank <- match(list_78$V1, rownames(dataset_sorted))
+
+  #####################################  
+  # plotting
+  
+  # setting palette
+  palette(c("black", "brown2", "dodgerblue4"))
+  
+  # plot the graph
+  # plot all transcripts in black and significant in red
+  plot(1:length(dataset_sorted$x), dataset_sorted$y, pch=20, col=as.factor(dataset_sorted$x_selected),
+       main=paste("DE (sd vs nsd) in", tissue), sub=dversion, cex.sub=0.5,
+       xlab="", ylab="", ylim=c(-3,3))
+  
+  # add transcripts from the 78 list in blue
+  points(list_78_rank, dataset_sorted$y[list_78_rank], pch=20, col=3)
+}
+
+
+```
+
+The volcano_plot function has 6 parameters:
+
+* xvariable: DEdata_cortex$adj.P.Val
+* yvariable: DEdata_cortex$logFC
+* labels: list of gene names (eg: rownames(DEdata_cortex))
+* tissue: tissue of the sample ("cortex" or "liver")
+* dversion: version of the dataset used ("newly generated" or "reference")
+* threshold: cutoff for significance of x values (default is 0.05)
+
+
+### Plotting
+
+```{r DE_VolcanoPlot_CortexLiver, fig.width=6}
+# plot figures
+
+# setting graphical parameters
+par(mfrow=c(1,2))
+
+# from newly generated dataset
+
+  # log FC vs adjusted p-value rank
+
+  # cortex
+  volcano_plot(xvariable=DEdata_cortex$adj.P.Val, yvariable=DEdata_cortex$logFC, labels=rownames(DEdata_cortex), tissue="cortex", dversion="newly generated", threshold=0.05)
+  # add labels for x and y axes
+  title(xlab="adjusted p-value rank", ylab="log2(FC)")
+  # add top logFc genes labels
+  text(x=which(DEdata_cortex$logFC>2.5)*10, y=DEdata_cortex$logFC[DEdata_cortex$logFC>2.5], labels=rownames(DEdata_cortex)[DEdata_cortex$logFC>2.5], pos=4, cex=0.8)
+  # liver
+  volcano_plot(xvariable=DEdata_liver$adj.P.Val, yvariable=DEdata_liver$logFC, labels=rownames(DEdata_liver), tissue="liver", dversion="newly generated", threshold=0.05)
+  # add labels for x and y axes
+  title(xlab="adjusted p-value rank", ylab="log2(FC)")
+  # add top logFc genes labels
+  text(x=which(DEdata_liver$logFC>2.5), y=DEdata_liver$logFC[DEdata_liver$logFC>2.5], labels=rownames(DEdata_liver)[DEdata_liver$logFC>2.5], pos=4, cex=0.8)
+
+```
+
+
+
+# Versions
+
+This report is built with R version `r paste(R.version$major, R.version$minor, sep=".")`. More info:
+
+```{r}
+sessionInfo()
+```
+

@@ -1,0 +1,117 @@
+---
+title: "Get_Gene_Position"
+author: "Nastassia Gobet, Maxime Jan"
+date: '31 Jan 2018 - '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: sandstone
+    toc: yes
+    toc_depth: 4
+    df_print: paged
+    rows.print: 6
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+Gene expression was quantified as follow:
+
+Here, the GEO dataset GSE114845 is loaded into the notebook. Expression data was quantified as gene-level counts using the ARCHS4 pipeline (Lachmann et al., 2017), available at http://amp.pharm.mssm.edu/archs4/.
+
+We took the Mus_musculus.GRCm38.cdna.all.fa.gz file used for gene expression write all fasta header to a file and parse this file
+
+zcat Mus_musculus.GRCm38.cdna.all.fa.gz | grep '>' > Biojupies_GeneExpression_FastaHeader.txt
+
+```{r}
+library(stringr)
+```
+
+
+```{r}
+fileName="../../Data/Exome/Biojupies_GeneExpression_FastaHeader.txt"
+con=file(fileName,open="r")
+line=readLines(con) 
+res<-matrix(ncol=4,nrow=length(line))
+for (i in 1:length(line)){
+  #rx<-regmatches(line[i],regexpr("gene_symbol:(.+) description",line[i],perl=T))
+  rx<-strsplit(line[i],' ')
+  gene<-gsub("gene_symbol:","",rx[[1]][7])
+  #gene<-gsub(" description","",gene)
+  rc<-regmatches(line[i],regexpr("\\w+:GRCm38:.+:\\d+:\\d+",line[i],perl=T))
+  rcs<-strsplit(rc,':')
+  chr<-rcs[[1]][3]
+  st<-rcs[[1]][4]
+  ed<-rcs[[1]][5]
+  res[i,]<-c(gene,chr,st,ed)
+}
+close(con)
+
+```
+
+```{r}
+uq<-unique(res[,1])
+resmerged<-matrix(ncol=5,nrow=length(uq))
+rownames(resmerged)<-uq
+for (i in uq){
+  resf<-res[res[,1] %in% i,,drop=F]
+  minv<-min(as.numeric(c(resf[,3],resf[,4])))
+  maxv<-max(as.numeric(c(resf[,3],resf[,4])))
+  resmerged[i,]<-c(i,paste("chr",resf[1,2],sep=""),round((minv+maxv)/2/1e6,6),round(minv/1e6,6),round(maxv/1e6,6))
+}
+
+```
+
+```{r}
+colnames(resmerged)<-c("Gene","Chromosome","Position","Start","End")
+#write.table(resmerged[,-1],file="../../Data/Exome/GenePosition.txt",sep="\t",quote=F,col.names = T,row.names=T)
+```
+
+
+
+```{r}
+library(biomaRt)
+```
+
+```{r}
+gene<-read.table("../../Data/Exome/GSE114845-expression.txt.txt",header=T,stringsAsFactors = F)
+genes<-gene$gene_symbol
+genes<-genes[! genes %in% resmerged[,1]] # genes without position
+```
+
+```{r}
+ensembl = useMart("ensembl",dataset="mmusculus_gene_ensembl")
+attributes = listAttributes(ensembl)
+```
+
+
+```{r}
+Pos<-getBM(attributes=c('mgi_symbol','chromosome_name', 'start_position','end_position'), 
+      filters = 'mgi_symbol', 
+      values = genes, 
+      mart = ensembl)
+```
+
+```{r}
+Pos$chromosome_name<-paste("chr",Pos$chromosome_name,sep="")
+```
+
+```{r}
+Pos<-Pos[! duplicated(Pos$mgi_symbol),]
+head(resmerged)
+head(Pos)
+PosF<-cbind(Pos$mgi_symbol,Pos$chromosome_name,(as.numeric(Pos$start_position)+as.numeric(Pos$end_position))/2/1e6,as.numeric(Pos$start_position)/1e6,as.numeric(Pos$end_position)/1e6)
+rownames(PosF)<-PosF[,1]
+```
+
+
+```{r}
+resmerged<-rbind(resmerged,PosF)
+write.table(resmerged[,-1],file="../../Data/Exome/GenePosition.txt",sep="\t",quote=F,col.names = T,row.names=T)
+```
+
