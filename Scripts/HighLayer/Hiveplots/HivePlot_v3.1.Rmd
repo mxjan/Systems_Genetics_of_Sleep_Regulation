@@ -1,0 +1,1459 @@
+---
+title: "HivePlot Version 3"
+output: html_document
+---
+
+Use the following script and command to generate md file:
+
+Rscript RmdTomd.R HivePlot_v3.0
+
+# Generation of Hiveplot figures
+
+Name of the files generated (will be used as filename)
+
+```{r}
+NAME <- 'HivePlots'
+VERSION <- 'v3.1'
+COMMENTS <- 'PearsonQuick2'
+FILENAME <- paste(NAME,VERSION,COMMENTS,sep='_')
+```
+
+Load Data, Dir & packages required for the analysis
+
+```{r, echo=TRUE}
+##setwd("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Reproducibility/HivePlots")
+DataDir <- "Data/" # location of data files (QTLs, transformed raw data, ...)
+TMPDir <- "TMP/" # location of precomputed files
+source("Plot2.R") # modified functions of HiveR to generate the Hiveplots images
+
+# Load packages and set dir
+library(gridExtra)
+##install.packages("GISTools")
+library(GISTools)
+library(igraph)
+##install.packages("qgraph")
+##install.packages("rlang")
+##install.packages("tibble")
+##install.packages("checkmate")
+##install.packages("data.table")
+library(qgraph)
+##install.packages("HiveR")
+library(HiveR)
+library(RColorBrewer)
+library(psych)
+require(grid)
+##if (!requireNamespace("BiocManager", quietly = TRUE))
+##install.packages("BiocManager")
+##BiocManager::install("qvalue")
+library(qvalue)
+```
+
+Thresholds & options
+
+```{r}
+AxisScalingFactor <-1000 # axis 1 (metabolites and marker will be 2 times AxisScalingFactor) DO NOT CHANGE (SOMETIMES HARD CODED :((( )!
+
+# Correlation matrix options, will encrease/decrease the number of edges
+quantilethreshold <- 0.9995 # quantile position as a hard threshold to select network edges. Threshold for Liver-Cortex correlation matrix #0.99995 
+metabolitequantilethreshold <- 0.995 # quantile position as a hard threshold to select network edges. Threshold for Cortex-Metabolites or Liver-Metabolites correlation matrix #0.9995
+
+# transeQTL p-value threshold
+transthreshold <- 1e-4 
+# ciseQTL p-value threshold
+cisthreshold <- 1e-3 
+
+# Correlation options
+method="spearman"
+##unused
+
+# Will increase/decrease the number of nodes
+# Hard threshold, keep gene at correlation X with phentoype:
+GeneCorrelationThreshold <- 0.485
+# Hard threshold, keep metabolite at correlation X with phentoype:
+MetaboCorrelationThreshold<- 0.485
+
+# Global option
+nodesSize <- 0.4 # Change node size
+weightEdges  <- 1 # Change thickness of edges
+CiseQTL <- rgb(0,1,0,alpha=.5)
+TranseQTL <- rgb(1,0.5,0,alpha=.2)
+eQTLweight <- 1
+
+# Option colors HPD
+PositiveCorrelation <- rgb(1,0,0)
+NegativeCorrelation <- rgb(0,0.75,1)
+NodesColor <- "white"
+
+# PDF
+pdfwidthfactor <- 5
+pdfheightfactor <- 5
+PDFFactor <- 8
+```
+
+Function to reformat a few data (eQTL)
+
+```{r}
+formatData <- function(Expr,cis){
+  Strains <- colnames(Expr)
+  GenotypeMatrix <- read.table(paste(DataDir,"Genotype.FormatedName.geno",sep=''), header=TRUE)
+  Genepos <- read.table(paste(DataDir,"RefSeqMiddlePosition.table",sep=''), header=TRUE)
+  Genepos[,1] <- gsub("chr",'',Genepos[,1])
+  Genepos <- Genepos[as.character(rownames(Expr)),]
+  cisv <- cis[,2]
+  names(cisv) <- rownames(cis)
+  cisv <- as.character(cisv[rownames(Expr)])
+  names(cisv) <- as.character(rownames(Expr))
+  
+  Notincis <- c()
+  
+  for (gene in names(cisv[is.na(cisv)])){
+    if (gene %in% rownames(cis)){
+      chr <- Genepos[gene,1]
+      pos <- Genepos[gene,2]
+      tmpGM <- GenotypeMatrix[GenotypeMatrix[,1]==chr,]
+      tmpGM[,4] <- abs(pos-tmpGM[,4])
+      cisv[gene] <- as.character(tmpGM[which(tmpGM[,4]==min(tmpGM[,4])),2])
+    }else {Notincis <- c(Notincis,gene)}
+  }
+  cisvfinal <- cisv[-which(names(cisv) %in% Notincis)]
+  Exprfinal <- Expr[-which(rownames(Expr) %in% Notincis),]
+  return(list(Exprfinal,cisvfinal))
+}
+```
+
+Get Data, read it and transform what is necessary
+
+```{r, echo =TRUE}
+# READ DATA
+
+# Load sleep phenotypes (traitData object)
+load(paste(DataDir,"SleepPhenotype3.Rdata",sep=''))
+
+# Load data expression
+CNSD <- read.table(paste(DataDir,"htseq-count_summary.txt.NSD.CPMnormalizedWITHNSDSD.txt",sep=''),header=TRUE,row.names=1)
+CNSD <- CNSD[,rownames(traitData)] # to sort columns (BXD lines) by their order (rows) for the traitData
+CSD <- read.table(paste(DataDir,"htseq-count_summary.txt.SD.CPMnormalizedWITHNSDSD.txt",sep=''),header=TRUE,row.names=1)
+CSD <- CSD[,rownames(traitData)]
+LNSD <- read.table(paste(DataDir,"htseq-count_summary.Liver.txt.NSD.CPMnormalizedWITHNSDSD.txt",sep=''),header=TRUE,row.names=1)
+LNSD <- LNSD[,rownames(traitData)]
+LSD <- read.table(paste(DataDir,"htseq-count_summary.Liver.txt.SD.CPMnormalizedWITHNSDSD.txt",sep=''),header=TRUE,row.names=1)
+LSD <- LSD[,rownames(traitData)]
+
+# Load Phenotype categories, change some names
+# sleep phenotypes
+Pheno <- read.table(paste(DataDir,"Phenotype.Categories.txt",sep=''),sep='\t',header=TRUE)
+Pheno$filename.variablename <- gsub('.out','.quant.out',Pheno$filename.variablename)
+Pheno$filename.variablename <- gsub("BXD_NR-ratio","BXD_NR.ratio",Pheno$filename.variablename)
+Pheno$filename.variablename <- gsub("BXDvs1224bsl.","BXDvs1224bsl.quant.out.",Pheno$filename.variablename)
+Pheno$filename.variablename <- gsub("hgain","hGain",Pheno$filename.variablename)
+Pheno$filename.variablename <- gsub("hloss","hLoss",Pheno$filename.variablename)
+# metabolite phenotypes
+File <- paste(DataDir,"Metabolites_BXD_alldata.txt",sep='')
+x <- read.table(File,header=TRUE,sep="\t")
+n <- x[1,]
+names(n) <- gsub(".","_",names(n),fixed = TRUE)
+n <- n[seq(6,length(n))]
+Pheno <- as.matrix(Pheno)
+for (i in seq(1,ncol(n))){
+	d <- c(paste(colnames(n)[i],'_SD',sep=''),'rec','metabolite',as.character(n[,i]))
+	Pheno <- rbind(Pheno,d)
+	d <- c(paste(colnames(n)[i],'_FC',sep=''),'rec vs bsl','metabolite',as.character(n[,i]))
+	Pheno <- rbind(Pheno,d)
+	d <- c(colnames(n)[i],'bsl','metabolite',as.character(n[,i]))
+	Pheno <- rbind(Pheno,d)
+}
+Pheno <- as.data.frame(Pheno)
+rownames(Pheno) <- NULL
+
+# Load Metabolite data
+mNSD <- read.table(paste(DataDir,"MetabolitesMean.NSD.txt",sep=''),header=TRUE,row.names=1)
+mNSD <- mNSD[rownames(traitData),]
+# Get SD metabolite mean concentration:
+mSD <- read.table(paste(DataDir,"MetabolitesMean.SD.txt",sep=''),header=TRUE,row.names=1)
+colnames(mSD) <- sapply(colnames(mSD),paste,'_SD',sep='')
+mSD <- mSD[rownames(traitData),]
+# Get FC metabolite mean concentration:
+mFC <- read.table(paste(DataDir,"MetabolitesFC.txt",sep=''),header=TRUE,row.names=1)
+colnames(mFC) <- sapply(colnames(mFC),paste,'_FC',sep='')
+mFC <- mFC[rownames(traitData),]
+
+# Corticosteroid data
+Cort <- read.table(paste(DataDir,"Corticosteroid_Unfiltered.txt",sep=''),header=TRUE,row.names=1)
+mousename <- gsub("BXD","BXD0",rownames(Cort))
+mousename <- gsub("BXD0100","BXD100",mousename)
+mousename <- gsub("BXD0101","BXD101",mousename)
+mousename <- gsub("BXD0103","BXD103",mousename)
+rownames(Cort) <- mousename
+Cort <- Cort[rownames(traitData),c(1,2)]
+Pheno <- rbind(as.matrix(Pheno),c("Cortico_Avg_NSD","bsl","Cort","Cort"))
+Pheno <- rbind(Pheno,c("Cortico_Avg_SD","rec","Cort","Cort"))
+Pheno <- as.data.frame(Pheno)
+
+# Read cis-eQTL
+# Correction for multiple test using qvalue R packages as suggested by Ongen et al.
+eQTLCorrection <- function(t){
+  t <- t[! duplicated(t[,1]),] # remove duplicated rownames (1)
+  qt <- qvalue(t$V10)
+  qt <- as.matrix(qt$qvalues)
+  rownames(qt) <- t$V1
+  qt[is.na(qt)] <- 1
+  qt <- as.data.frame(qt)
+  qt[,2] <- t[,6]
+  qt <- qt[qt[,1]<=cisthreshold,,drop=FALSE]
+  return(qt)
+}
+
+cisCNSD <- read.table(paste(DataDir,"ciseQTL.Cortex.NSD.txt",sep=''))
+qcisCNSD <- eQTLCorrection(cisCNSD)
+
+cisCSD <- read.table(paste(DataDir,"ciseQTL.Cortex.SD.txt",sep=''))
+qcisCSD <- eQTLCorrection(cisCSD)
+
+cisLNSD <- read.table(paste(DataDir,"ciseQTL.Liver.NSD.txt",sep=''))
+qcisLNSD <- eQTLCorrection(cisLNSD)
+
+cisLSD <- read.table(paste(DataDir,"ciseQTL.Liver.SD.txt",sep=''))
+qcisLSD <- eQTLCorrection(cisLSD)
+
+# Read transeQTL
+transCNSD <- read.table(paste(DataDir,"transeQTL_filtered_C_NSD.txt",sep=''),header=TRUE)
+transCNSD <- transCNSD[transCNSD$p_value<=transthreshold,]
+
+transCSD <- read.table(paste(DataDir,"transeQTL_filtered_C_SD.txt",sep=''),header=TRUE)
+transCSD <- transCSD[transCSD$p_value<=transthreshold,]
+
+transLNSD <- read.table(paste(DataDir,"transeQTL_filtered_L_NSD.txt",sep=''),header=TRUE)
+transLNSD <- transLNSD[transLNSD$p_value<=transthreshold,]
+
+transLSD <- read.table(paste(DataDir,"transeQTL_filtered_L_SD.txt",sep=''),header=TRUE)
+transLSD <- transLSD[transLSD$p_value<=transthreshold,]
+
+# Marker Position File
+Mpos <- read.table(paste(DataDir,"Genotype.FormatedName.geno",sep=''),header=TRUE)
+Locus <- Mpos$Locus
+Mpos <- 1:nrow(Mpos)
+names(Mpos) <- Locus
+
+# Limma data
+LimmaC <- as.matrix(read.table(paste(DataDir,"Limma_Cortex.txt",sep='')))
+LimmaL <- as.matrix(read.table(paste(DataDir,"Limma_Liver.txt",sep='')))
+
+# Add Cort Data to metabolite
+mSD <- cbind(mSD,Cort[,2,drop=FALSE])
+mNSD <- cbind(mNSD,Cort[,1,drop=FALSE])
+
+# test metabolite data
+pval <- c()
+for (i in 1:ncol(mNSD)){
+  pval <- c(pval,wilcox.test(log(mNSD[,i]),log(mSD[,i]),paired=TRUE)$p.value)
+  names(pval)[i] <- names(mNSD)[i]
+}
+Metabolitespvaladj <- p.adjust(pval,method="fdr")
+
+# All genes
+Allgenes <- read.table(paste(DataDir,"RefSeqMiddlePosition.table",sep=''),header=TRUE,row.names=1)
+AllgenesLiver <- Allgenes[rownames(Allgenes) %in% rownames(LNSD) | rownames(Allgenes) %in% rownames(LSD) | rownames(Allgenes) %in% rownames(LimmaL),]
+AllgenesCortex <- Allgenes[rownames(Allgenes) %in% rownames(CNSD) | rownames(Allgenes) %in% rownames(CSD) | rownames(Allgenes) %in% rownames(LimmaC),]
+
+# All Pheno
+AllPheno <- cbind(traitData,mSD,mNSD,mFC,Cort[,1,drop=FALSE],Cort[,2,drop=FALSE])
+```
+
+Here we rerun all scripts to generate all correlation matrix or Table required, the data are then saved into DataDir. Or we load this file if FILENAME as not changed. We stock the correlation matrix and the different index regarding which edges we keep (a bit long to compute, so we save it)
+
+```{r}
+# Control if a file containing precomputed data exist: if yes, load it, if not compute it and save it.
+PRECOMPUTEDFILENAME <- paste(FILENAME,'.PrecomputedCorrelations.Rdata',sep='')
+if (file.exists(paste(DataDir,PRECOMPUTEDFILENAME,sep=''))){
+  load(paste(DataDir,PRECOMPUTEDFILENAME,sep=''))
+}else{
+  # Create correlation matrix and filter using setup hard thresholds (variable finished by 1 _> SD; 2 -> NSD)
+  # Cortex~Liver
+  #Tcor1 <- cor(t(CSD),t(LSD),method="pearson")
+  load("Data/pcor_spearman_CortexSD_LiverSD.Rdata")
+  Tcor1 <- t
+  idxTcor1 <- which(abs(Tcor1)>=quantile(abs(Tcor1),na.rm=TRUE,prob=quantilethreshold),arr.ind=TRUE)
+  print(min(abs(Tcor1[idxTcor1])))
+  Tcor2 <- cor(t(CNSD),t(LNSD),method="pearson")
+  idxTcor2 <- which(abs(Tcor2)>=quantile(abs(Tcor2),na.rm=TRUE,prob=quantilethreshold),arr.ind=TRUE)
+  print(min(abs(Tcor2[idxTcor2])))
+  
+  # Cortex~Metabolites
+  GMcorC1 <- cor(t(CSD),mSD,use="pairwise.complete.obs",method="pearson")
+  idxGMcorC1 <- which(abs(GMcorC1)>=quantile(abs(GMcorC1),na.rm=TRUE,prob=metabolitequantilethreshold),arr.ind=TRUE)
+  print(min(abs(GMcorC1[idxGMcorC1])))
+  GMcorC2 <- cor(t(CNSD),mNSD,use="pairwise.complete.obs",method="pearson")
+  idxGMcorC2 <- which(abs(GMcorC2)>=quantile(abs(GMcorC2),na.rm=TRUE,prob=metabolitequantilethreshold),arr.ind=TRUE)
+  print(min(abs(GMcorC2[idxGMcorC2])))
+  
+  # Liver~Metabolites
+  GMcorL1 <- cor(t(LSD),mSD,use="pairwise.complete.obs",method="pearson")
+  idxGMcorL1 <- which(abs(GMcorL1)>=quantile(abs(GMcorL1),na.rm=TRUE,prob=metabolitequantilethreshold),arr.ind=TRUE)
+  print(min(abs(GMcorL1[idxGMcorL1])))
+  GMcorL2 <- cor(t(LNSD),mNSD,use="pairwise.complete.obs",method="pearson")
+  idxGMcorL2 <- which(abs(GMcorL2)>=quantile(abs(GMcorL2),na.rm=TRUE,prob=metabolitequantilethreshold),arr.ind=TRUE)
+  print(min(abs(GMcorL2[idxGMcorL2])))
+  
+  # Cortex and Liver ~ Phenotypes
+  PhCcorNSD <- cor(AllPheno,t(CNSD),method="pearson",use="pairwise.complete.obs")
+  PhCcorSD <- cor(AllPheno,t(CSD),method="pearson",use="pairwise.complete.obs")
+  PhLcorNSD <- cor(AllPheno,t(LNSD),method="pearson",use="pairwise.complete.obs")
+  PhLcorSD <- cor(AllPheno,t(LSD),method="pearson",use="pairwise.complete.obs")
+  
+  # Metabolite ~ Phenotyes
+  PhMcorNSD <- cor(AllPheno,mNSD,method="pearson",use="pairwise.complete.obs")
+  PhMcorSD <- cor(AllPheno,mSD,method="pearson",use="pairwise.complete.obs")
+  
+  # Format Data for partial Correlation
+  cisthreshold <- 1
+  form <- formatData(LSD,eQTLCorrection(cisLSD))
+  LSDformated <- form[[1]]
+  cisLSDformated <- form[[2]]
+  
+  form <- formatData(CSD,eQTLCorrection(cisCSD))
+  CSDformated <- form[[1]]
+  cisCSDformated <- form[[2]]
+  
+  form <- formatData(LNSD,eQTLCorrection(cisLNSD))
+  LNSDformated <- form[[1]]
+  cisLNSDformated <- form[[2]]
+  
+  form <- formatData(CNSD,eQTLCorrection(cisCNSD))
+  CNSDformated <- form[[1]]
+  cisCNSDformated <- form[[2]]
+  
+  GenotypeMatrix <- read.table(paste(DataDir,"Genotype.FormatedName.geno",sep=''),header=TRUE)
+  Nmarker <- as.character(GenotypeMatrix$Locus)
+  GenotypeMatrix <- GenotypeMatrix[,colnames(LSDformated)]
+  rownames(GenotypeMatrix) <- Nmarker
+  
+  save(Tcor1,idxTcor1,Tcor2,idxTcor2,
+       GMcorC1,idxGMcorC1,GMcorC2,idxGMcorC2,
+       GMcorL1,idxGMcorL1,GMcorL2,idxGMcorL2,
+       PhCcorNSD,PhCcorSD,PhLcorNSD,PhLcorSD,
+       PhMcorNSD,PhMcorSD,
+       LSDformated,cisLSDformated,CSDformated,cisCSDformated,
+       cisLNSDformated,cisLNSDformated,CNSDformated,cisCNSDformated,
+       GenotypeMatrix,
+       file=paste(DataDir,PRECOMPUTEDFILENAME,sep=''))
+}
+
+```
+
+# Function to create Hiveplots
+
+Set the position of nodes for metabolites on the vertical axis, axis length = 1000 with an interval of 100 between significant results. Position here is based on pvalue for differential expression.
+
+```{r}
+SetRadiusMetabolite <- function(){
+  m <- apply(mSD,2,mean,na.rm=TRUE)/(apply(mNSD,2,mean,na.rm=TRUE))
+  names(m) <- colnames(mNSD)
+  SignifUp <- m[m>1 & pval<=0.05]
+  SignifDown <- m[m<1 & pval<=0.05]
+  ##n <- pval[pval<0.05]
+  ##n[(! names(n) %in% names(SignifUp)) & (! names(n) %in% names(SignifDown))]
+  rDown <- rank(SignifDown,ties="random")
+  newmin <- 780*(length(rDown)/length(pval))
+  rDown <- ((rDown-min(rDown))/(max(rDown)-min(rDown)))*((100+newmin)-100)+100
+  rUp <- rank(SignifUp,ties="random")
+  newmin <- 780*(length(rUp)/length(pval))
+  rUp <- ((rUp-min(rUp))/(max(rUp)-min(rUp)))*(1000-(1000-newmin))+(1000-newmin)
+  rNotSignif <- rank(m[pval>0.05],ties="random")
+  rNotSignif <- ((rNotSignif-min(rNotSignif))/(max(rNotSignif)-min(rNotSignif)))*((min(rUp)-60)-(max(rDown)+60))+(max(rDown)+60)
+  radius <- c(rDown,rUp,rNotSignif)
+  radius <- radius[colnames(mNSD)]
+  return(radius)
+}
+```
+
+Set the position of nodes for gene expression on the cortex and liver axis (2 and 3), axis length = 1000 with an interval of 100 between significant results. Position here is based on pvalue for differential expression.
+
+```{r}
+SetRadiusGenes <- function(Tissue){
+  
+  if (Tissue=="Liver"){radiusgenes <- LimmaL[,c("logFC","adj.P.Val")]}
+  if (Tissue=="Cortex"){radiusgenes <- LimmaC[,c("logFC","adj.P.Val")]}
+   
+  SignifUp <- radiusgenes[radiusgenes[,1]>0 & radiusgenes[,2]<=0.05,1]
+  SignifDown <- radiusgenes[radiusgenes[,1]<0 & radiusgenes[,2]<=0.05,1]
+  NotSignif <- radiusgenes[radiusgenes[,2]>0.05,1]
+  if (Tissue=="Cortex"){ n <- rownames(AllgenesCortex)[ ! rownames(AllgenesCortex) %in% rownames(LimmaC)] ; V <- rep(0,length(n)) ; names(V) <- n }
+  if (Tissue=="Liver"){ n <- rownames(AllgenesLiver)[ ! rownames(AllgenesLiver) %in% rownames(LimmaL)] ; V <- rep(0,length(n)) ; names(V) <- n }
+  NotSignif <- c(NotSignif,V)
+  
+  if (Tissue=="Cortex"){AllGenesT <- AllgenesCortex}
+  if (Tissue=="Liver"){AllGenesT <- AllgenesLiver}
+  rDown <- rank(SignifDown,ties="random")
+  newmin <- 780*(length(rDown)/nrow(AllGenesT))
+  rDown <- ((rDown-min(rDown))/(max(rDown)-min(rDown)))*((100+newmin)-100)+100
+  rUp <- rank(SignifUp,ties="random")
+  newmin <- 780*(length(rUp)/nrow(AllGenesT))
+  rUp <- ((rUp-min(rUp))/(max(rUp)-min(rUp)))*(1000-(1000-newmin))+(1000-newmin)
+  rNotSignif <- rank(NotSignif,ties="random")
+  rNotSignif <- ((rNotSignif-min(rNotSignif))/(max(rNotSignif)-min(rNotSignif)))*((min(rUp)-60)-(max(rDown)+60))+(max(rDown)+60)
+  radius <- c(rDown,rUp,rNotSignif)
+  radius <- radius[rownames(AllGenesT)]
+  return(radius)
+}
+
+```
+
+With this function, you can scale the color of nodes based on their differential expression after SD, upregulated = red, down regulated = blue
+
+```{r}
+
+NodesScaledColor <- function(HPD,Tissue){
+  if (Tissue=="Liver"){radiusgenes <- LimmaL[,c("logFC","adj.P.Val")]}
+  if (Tissue=="Cortex"){radiusgenes <- LimmaC[,c("logFC","adj.P.Val")]}
+  SignifUp <- radiusgenes[radiusgenes[,1]>0 & radiusgenes[,2]<=0.05,1]
+  SignifDown <- radiusgenes[radiusgenes[,1]<0 & radiusgenes[,2]<=0.05,1]
+  NotSignif <- radiusgenes[radiusgenes[,2]>0.05,1]
+  if (Tissue=="Cortex"){ n <- rownames(AllgenesCortex)[ ! rownames(AllgenesCortex) %in% rownames(LimmaC)] ; V <- rep(0,length(n)) ; names(V) <- n }
+  if (Tissue=="Liver"){ n <- rownames(AllgenesLiver)[ ! rownames(AllgenesLiver) %in% rownames(LimmaL)] ; V <- rep(0,length(n)) ; names(V) <- n }
+  if (Tissue=="Cortex"){AllGenesT <- AllgenesCortex}
+  if (Tissue=="Liver"){AllGenesT <- AllgenesLiver}
+  rDown <- rank(SignifDown,ties="random")
+  newmin <- 780*(length(rDown)/nrow(AllGenesT))
+  rDown <- ((rDown-min(rDown))/(max(rDown)-min(rDown)))*((100+newmin)-100)+100
+  VcolorDown <- c()
+  my_palette <- colorRampPalette(c("mediumblue", "white"))(n = (max(rDown)+60)/10-min(rDown)/10)
+  VcolorDown <- c(VcolorDown,as.character(cut((rDown+.001)/10,seq(min(rDown)/10,(max(rDown)+60+10)/10),labels=my_palette)))
+  names(VcolorDown) <- names(rDown)
+  
+  rUp <- rank(-SignifUp,ties="random")
+  newmin <- 780*(length(rUp)/nrow(AllGenesT))
+  rUp <- ((rUp-min(rUp))/(max(rUp)-min(rUp)))*(1000-(1000-newmin))+(1000-newmin)
+  VcolorUp <- c()
+  my_palette <- colorRampPalette(c("red3", "white"))(n = max(rUp)/10-(min(rUp)-60)/10)
+  VcolorUp <- c(VcolorUp,as.character(cut((rUp+.001)/10,seq((min(rUp)-60)/10,(max(rUp)+10)/10),labels=my_palette)))
+  names(VcolorUp) <- names(rUp)
+  
+  Vcolor <- c(VcolorDown,VcolorUp)
+  
+  if (Tissue=="Liver"){
+    n <- HPD$nodes[HPD$nodes$axis==3 & HPD$nodes$lab %in% names(Vcolor),]$lab
+    HPD$nodes[HPD$nodes$axis==3 & HPD$nodes$lab %in% names(Vcolor),]$color <- Vcolor[n]
+  }
+  if (Tissue=="Cortex"){
+    n <- HPD$nodes[HPD$nodes$axis==2 & HPD$nodes$lab %in% names(Vcolor),]$lab
+    HPD$nodes[HPD$nodes$axis==2 & HPD$nodes$lab %in% names(Vcolor),]$color <- Vcolor[n]
+  }
+  return(HPD)
+}
+
+```
+
+Function to create the HPD object used for plotting. There are 3 axes:
+
+1) (vertical) metabolites (bottom) and markers (top)
+2) (left) genes of cortex sorted by differential gene expression
+3) (right) genes of liver sorted by differential gene expression
+
+```{r}
+
+# Function to create 1 HPD object
+CreateHPD <- function(Condition){
+ # Nodes ID starting point
+  idmax <- 0
+  
+  if (Condition == "NSD"){MetaboliteData <- mNSD;LiverData <- LNSD;CortexData <- CNSD;cisCData <- qcisCNSD;cisLData <- qcisLNSD;transCData <- transCNSD;transLData <- transLNSD}
+  if (Condition == "SD"){MetaboliteData <- mSD;LiverData <- LSD;CortexData <- CSD;cisCData <- qcisCSD;cisLData <- qcisLSD;transCData <- transCSD;transLData <- transLSD}
+  
+  # Set axis 1 (markers and metabolites)
+  HPDA1 <- list()
+  HPDA1$nodes$id <- (idmax+1):(idmax+length(Mpos)+ncol(MetaboliteData)) # 11k markers and 124 metabolites
+  HPDA1$nodes$lab <- c(names(Mpos),colnames(MetaboliteData))
+  HPDA1$nodes$axis <- rep(1,length(HPDA1$nodes$id))
+  # Scale marker position (v-min/max-min)*(nmax-nmin)+nmin
+  radiusmarkers <- 1:length(Mpos)
+  radiusmarkers <- ((radiusmarkers-min(radiusmarkers))/(max(radiusmarkers)-min(radiusmarkers)))*(2000-(1100))+(1100)
+  # Scale Metabolite position
+  radiusmetabolites <- SetRadiusMetabolite()
+  HPDA1$nodes$radius <- c(radiusmarkers,radiusmetabolites)
+  HPDA1$nodes$size <- rep(nodesSize,length(HPDA1$nodes$id))
+  HPDA1$nodes$color <- as.character(rep("grey",length(HPDA1$nodes$id))) # SET COLORS
+  A1ID <- c(HPDA1$nodes$id)
+  names(A1ID) <- HPDA1$nodes$lab
+  
+  idmax <- max(HPDA1$nodes$id)
+  
+  # Set axis 2
+  HPDA2 <- list()
+  HPDA2$nodes$id <- (idmax+1):(idmax+nrow(AllgenesCortex))
+  HPDA2$nodes$lab <- rownames(AllgenesCortex)
+  HPDA2$nodes$axis <- rep(2,length(HPDA2$nodes$id))
+  HPDA2$nodes$radius <- SetRadiusGenes("Cortex")
+  HPDA2$nodes$size <- rep(nodesSize,length(HPDA2$nodes$id))
+  HPDA2$nodes$color <- as.character(rep("grey",length(HPDA2$nodes$id)))  # SET COLORS
+  CortexID <- c(HPDA2$nodes$id)
+  names(CortexID) <- HPDA2$nodes$lab
+  A2ID<-c(HPDA2$nodes$id)
+  names(A2ID)<-HPDA2$nodes$lab
+  
+  idmax <- max(HPDA2$nodes$id)
+  
+  # Set axis 3
+  HPDA3 <- list()
+  HPDA3$nodes$id <- (idmax+1):(idmax+nrow(AllgenesLiver))
+  HPDA3$nodes$lab <- rownames(AllgenesLiver)
+  HPDA3$nodes$axis <- rep(3,length(HPDA3$nodes$id))
+  HPDA3$nodes$radius <- SetRadiusGenes("Liver")
+  HPDA3$nodes$size <- rep(nodesSize,length(HPDA3$nodes$id))
+  HPDA3$nodes$color <- as.character(rep("grey",length(HPDA3$nodes$id)))  # SET COLORS
+  LiverID <- c(HPDA3$nodes$id)
+  names(LiverID) <- HPDA3$nodes$lab
+  A3ID<-c(HPDA3$nodes$id)
+  names(A3ID)<-HPDA3$nodes$lab
+  
+  idmax <- max(HPDA3$nodes$id)
+  
+  # Set HPD object
+  HPD <- list()
+  HPD$nodes <- rbind(as.data.frame(HPDA1$nodes),as.data.frame(HPDA2$nodes),as.data.frame(HPDA3$nodes))
+
+  # Set edges in HPD object
+  # Cortex~Liver
+  if (Condition == "NSD"){Tcor <- Tcor2;idxTcor <- idxTcor2}
+  if (Condition == "SD"){Tcor <- Tcor1;idxTcor <- idxTcor1}
+  HPD$edges$id1 <- c(HPD$edges$id1,CortexID[rownames(Tcor)[idxTcor[,1]]])
+  HPD$edges$id2 <- c(HPD$edges$id2,LiverID[colnames(Tcor)[idxTcor[,2]]])
+  HPD$edges$weight <- c(HPD$edges$weight,abs(c(Tcor[idxTcor])))
+  color <- rep("grey",nrow(idxTcor))
+  HPD$edges$color <- c(HPD$edges$color,color)
+  HPD$edges$Cor <- c(HPD$edges$Cor,Tcor[idxTcor])
+  HPD$edges$info <- c(HPD$edges$info,rep("CorCL",nrow(idxTcor)))
+  
+  # Set edges cis-transeQTL
+  HPD$edges$id1 <- c(HPD$edges$id1,A1ID[as.character(cisCData$V2)])
+  HPD$edges$id1 <- c(HPD$edges$id1,A1ID[as.character(transCData$SNP)])
+  HPD$edges$id1 <- c(HPD$edges$id1,A1ID[as.character(cisLData$V2)])
+  HPD$edges$id1 <- c(HPD$edges$id1,A1ID[as.character(transLData$SNP)])
+
+  HPD$edges$id2 <- c(HPD$edges$id2,A2ID[as.character(rownames(cisCData))])
+  HPD$edges$id2 <- c(HPD$edges$id2,A2ID[as.character(transCData$GeneExpr)])
+
+  HPD$edges$id2 <- c(HPD$edges$id2,A3ID[as.character(rownames(cisLData))])
+  HPD$edges$id2 <- c(HPD$edges$id2,A3ID[as.character(transLData$GeneExpr)])
+  HPD$edges$weight <- c(HPD$edges$weight,rep(.8,length(cisCData$V2)+length(cisLData$V2)+length(transLData$GeneExpr)+length(transCData$GeneExpr)))
+  HPD$edges$color <- c(HPD$edges$color,c(rep("green",length(cisCData$V2)),
+                                     rep("orange",length(transCData$GeneExpr)),
+                                     rep("green",length(cisLData$V2)),
+                                     rep("orange",length(transLData$GeneExpr))))
+  HPD$edges$Cor <- c(HPD$edges$Cor,rep(.8,length(cisCData$V2)+length(cisLData$V2)+length(transLData$GeneExpr)+length(transCData$GeneExpr)))
+  HPD$edges$info <- c(HPD$edges$info,c(rep("ciseQTL",length(cisCData$V2)),
+                                   rep("transeQTL",length(transCData$GeneExpr)),
+                                   rep("ciseQTL",length(cisLData$V2)),
+                                   rep("transeQTL",length(transLData$GeneExpr))))
+  
+  # Edges for gene~Metabolites
+  if (Condition == "NSD"){GMcor <- GMcorC2;idxGMcor <- idxGMcorC2}
+  if (Condition == "SD"){GMcor <- GMcorC1;idxGMcor <- idxGMcorC1}
+  HPD$edges$id1 <- c(HPD$edges$id1,A2ID[rownames(GMcor)[idxGMcor[,1]]])
+  HPD$edges$id2 <- c(HPD$edges$id2,A1ID[colnames(GMcor)[idxGMcor[,2]]])
+  HPD$edges$weight <- c(HPD$edges$weight,abs(c(GMcor[idxGMcor])))
+  color <- rep("grey",nrow(idxGMcor))
+  HPD$edges$color <- c(HPD$edges$color,color)
+  HPD$edges$Cor <- c(HPD$edges$Cor,GMcor[idxGMcor])
+  HPD$edges$info <- c(HPD$edges$info,rep("CorGMC",nrow(idxGMcor)))
+  
+  if (Condition == "NSD"){GMcor <- GMcorL2;idxGMcor <- idxGMcorL2}
+  if (Condition == "SD"){GMcor <- GMcorL1;idxGMcor <- idxGMcorL1}
+  HPD$edges$id1 <- c(HPD$edges$id1,A3ID[rownames(GMcor)[idxGMcor[,1]]])
+  HPD$edges$id2 <- c(HPD$edges$id2,A1ID[colnames(GMcor)[idxGMcor[,2]]])
+  HPD$edges$weight <- c(HPD$edges$weight,abs(c(GMcor[idxGMcor])))
+  color <- rep("grey",nrow(idxGMcor))
+  HPD$edges$color <- c(HPD$edges$color,color)
+  HPD$edges$Cor <- c(HPD$edges$Cor,GMcor[idxGMcor])
+  HPD$edges$info <- c(HPD$edges$info,rep("CorGML",nrow(idxGMcor)))
+  
+  # edges connecting Genes DE to location (axes 2-3 and 4-5)
+  HPD$edges$id1 <- c(HPD$edges$id1,CortexID[names(CortexID)])
+  HPD$edges$id2 <- c(HPD$edges$id2,A2ID[names(CortexID)])
+  HPD$edges$weight <- c(HPD$edges$weight,rep(1,length(CortexID[names(CortexID)])))
+  color <- rep("grey",length(CortexID[names(CortexID)]))
+  HPD$edges$color <- c(HPD$edges$color,color)
+  HPD$edges$Cor <- c(HPD$edges$Cor,rep(1,length(CortexID[names(CortexID)])))
+  HPD$edges$info <- c(HPD$edges$info,rep("CLocation",length(CortexID[names(CortexID)])))
+  
+  HPD$edges$id1 <- c(HPD$edges$id1,LiverID[names(LiverID)])
+  HPD$edges$id2 <- c(HPD$edges$id2,A3ID[names(LiverID)])
+  HPD$edges$weight <- c(HPD$edges$weight,rep(1,length(LiverID[names(LiverID)])))
+  color <- rep("grey",length(LiverID[names(LiverID)]))
+  HPD$edges$color <- c(HPD$edges$color,color)
+  HPD$edges$Cor <- c(HPD$edges$Cor,rep(1,length(LiverID[names(LiverID)])))
+  HPD$edges$info <- c(HPD$edges$info,rep("LLocation",length(LiverID[names(LiverID)])))
+  
+  
+  # Set Final and control 
+  HPD$edges <- as.data.frame(HPD$edges)
+  desc <- "No description provided"
+  HPD$desc <- desc
+  HPD$axis.cols <- c(rgb(0,0,0,alpha=0),rgb(0,0,0,alpha=0),rgb(0,0,0,alpha=0))
+  HPD$nodes$axis <- as.integer(HPD$nodes$axis)
+  HPD$nodes$size <- as.numeric(HPD$nodes$size)
+  HPD$nodes$color <- as.character(HPD$nodes$color)
+  HPD$nodes$lab <- as.character(HPD$nodes$lab)
+  HPD$edges$id1 <- as.integer(HPD$edges$id1)
+  HPD$edges$id2 <- as.integer(HPD$edges$id2)
+  HPD$edges$weight <- as.numeric(HPD$edges$weight)
+  HPD$edges$color <- as.character(HPD$edges$color)
+  HPD$type <- "2D"
+  HPD$nodes$radius <- as.numeric(HPD$nodes$radius)
+  class(HPD) <- "HivePlotData"
+  chkHPD(HPD) # check if hive plot object is ok
+  return(HPD)
+}
+
+```
+
+Set the color of the edges, 
+
+```{r}
+
+EdgesColorIntra <- function(HPD){
+  # ID in axis 2
+  id2 <- HPD$nodes$id[HPD$nodes$axis==2]
+  n2 <- unique(HPD$nodes$lab[HPD$nodes$id %in% id2])
+  
+  # ID in axis 3
+  id3 <- HPD$nodes$id[HPD$nodes$axis==3]
+  n3 <- unique(HPD$nodes$lab[HPD$nodes$id %in% id3])
+  
+  # Get Connection matrix
+  CM <- ConnectionMatrix(HPD)
+  mCortex <- CM[[1]]
+  mLiver <- CM[[2]]
+  
+  # Get genes with at least 1 connection to metabolites, markers and/or other tissue
+  mmCortex <- apply(mCortex,1,sum, na.rm=TRUE)
+  mmCortex <- mmCortex[mmCortex>0]
+  mmLiver <- apply(mLiver,1,sum, na.rm=TRUE)
+  mmLiver <- mmLiver[mmLiver>0]
+  
+  # Color edges of genes connected to metabolites, marker and/or other tissue
+  ids <- HPD$nodes$id[(HPD$nodes$axis==2) & HPD$nodes$lab %in% names(mmCortex)]
+  HPD$edges$color[HPD$edges$id1 %in% ids & HPD$edges$id2 %in% ids] <- rgb(1,1,1, alpha=.3)
+  
+  ids <- HPD$nodes$id[(HPD$nodes$axis==3) & HPD$nodes$lab %in% names(mmLiver)]
+  HPD$edges$color[HPD$edges$id1 %in% ids & HPD$edges$id2 %in% ids] <- rgb(1,1,1, alpha=.3)
+  
+  # Color edges of genes present in both Tissue
+  GbothT <- n2[n2 %in% n3]
+  ids <- HPD$nodes$id[HPD$nodes$lab %in% GbothT]
+  HPD$edges$color[HPD$edges$id1 %in% ids & HPD$edges$id2 %in% ids & (HPD$edges$info=="CLocation" | HPD$edges$info=="LLocation")] <- "darkorchid1"
+  
+  # Remaining edges are set with transparency
+  HPD$edges$color[HPD$edges$color=="grey"] <- rgb(1,1,1, alpha=0)
+  
+  return(HPD)
+}
+
+```
+
+Put maximum and minimum nodes (at position 1 and 1000)
+
+```{r}
+# put maximum possible nodes with white color
+PutMaxNodes <- function(HPD){
+  # Set Max Values possible
+  idmax <- max(HPD$nodes$id)
+  MaxNodes <- list()
+  MaxNodes$id <- as.integer(c(idmax+1,idmax+2,idmax+3))
+  MaxNodes$lab <- as.character(c("Max","Max","Max"))
+  MaxNodes$axis <- as.integer(c(1,2,3))
+  MaxNodes$radius <- as.numeric(c(1000,1000,1000))
+  MaxNodes$size <- as.numeric(c(1,1,1))
+  MaxNodes$color <- as.character(c(rgb(1,1,1,alpha=0.2),rgb(1,1,1,alpha=0.2),rgb(1,1,1,alpha=0.2)))
+  HPD$nodes <- rbind(HPD$nodes,as.data.frame(MaxNodes))
+  return(HPD)
+}
+
+```
+
+function to remove poorly correlated nodes with a given phenotypes
+
+```{r}
+
+FilterByCorrelationWithPhenotype <- function(HPD,Cor,CorM,PS,Condition){
+  
+  # get genes with correlation with phenotype >= Cor
+  if (Condition=="NSD"){Ccor <- PhCcorNSD[rownames(PhCcorNSD) %in% PS,];Lcor <- PhLcorNSD[rownames(PhLcorNSD) %in% PS,]}
+  if (Condition=="SD"){Ccor <- PhCcorSD[rownames(PhCcorSD) %in% PS,];Lcor <- PhLcorSD[rownames(PhLcorSD) %in% PS,]}
+  Ccor <- Ccor[abs(Ccor)>=Cor]
+  nC <- HPD$nodes[(HPD$nodes$axis == 2) & HPD$nodes$lab %in% names(Ccor),]$id
+  Lcor <- Lcor[abs(Lcor)>=Cor]
+  nL <- HPD$nodes[(HPD$nodes$axis == 3) & HPD$nodes$lab %in% names(Lcor),]$id
+  
+  # get metabolites with correlation with phenotype >= CorM
+  if (Condition=="NSD"){Mcor <- PhMcorNSD[rownames(PhMcorNSD) %in% PS,]}
+  if (Condition=="SD"){Mcor <- PhMcorSD[rownames(PhMcorSD) %in% PS,]}
+  Mcor <- Mcor[abs(Mcor)>=CorM]
+  nM <- HPD$nodes[(HPD$nodes$axis == 1 & HPD$nodes$radius <= 1000) & HPD$nodes$lab %in% names(Mcor),]$id
+  
+  # get marker connected to our selection
+  n <- c(nC,nL,nM)
+  ntmp <- HPD$edges[HPD$edges$id2 %in% n,]$id1
+  nMa <- HPD$nodes[(HPD$nodes$axis == 1 & HPD$nodes$radius > 1000) & HPD$nodes$id %in% ntmp,]$id
+  
+  n <- c(n,nMa)
+  
+  HPD$edges <- HPD$edges[HPD$edges$id1 %in% n & HPD$edges$id2 %in% n,]
+  HPD$nodes <- HPD$nodes[HPD$nodes$id %in% c(HPD$edges$id1,HPD$edges$id2),]
+  return(HPD)
+}
+
+```
+
+function to remove unconnected nodes
+
+```{r}
+
+# Remove unconnected nodes (no edges present)
+RemoveUNCnodes <- function(HPD){
+  HPD$nodes <- HPD$nodes[HPD$nodes$id %in% c(HPD$edges$id1,HPD$edges$id2),]
+  return(HPD)
+}
+
+```
+
+recolor some edges for the paper
+
+```{r}
+
+Recolor <- function(HPD){
+  HPD$nodes$size <- nodesSize
+  HPD$nodes$color <- NodesColor
+  HPD$edges$weight <- weightEdges
+  HPD$edges$weight[HPD$edges$color=="orange"] <- eQTLweight
+  HPD$edges$weight[HPD$edges$color=="green"] <- eQTLweight
+  HPD$edges$color[HPD$edges$color=="green"] <- CiseQTL
+  HPD$edges$color[HPD$edges$color=="orange"] <- TranseQTL
+  HPD$edges$color[HPD$edges$Cor>0 & (HPD$edges$info=="CorGML" | HPD$edges$info=="CorGMC" | HPD$edges$info=="CorCL")] <- PositiveCorrelation
+  HPD$edges$color[HPD$edges$Cor<0 & (HPD$edges$info=="CorGML" | HPD$edges$info=="CorGMC" | HPD$edges$info=="CorCL")] <- NegativeCorrelation
+  HPD$edges$color <- as.character(HPD$edges$color)
+  
+  # Color based on DE for axis 2 and 3
+  HPD <- NodesScaledColor(HPD,"Cortex")
+  HPD <- NodesScaledColor(HPD,"Liver")
+  
+  # Color edges between axis 2-3 and 4-5
+  ##HPD <- EdgesColorIntra(HPD)
+  
+  return(HPD)
+}
+
+```
+
+Plot the figure using a matrix (n x m) of phenotypes.
+
+2 pdf are generated, one with the hiveplot, one (in a network graph) nodes connected with 2 other axis.
+
+```{r}
+
+PlotFigure <- function(PhenotypeMatrix,Rname,Cname){
+  # Plot Data
+  nc <- ncol(PhenotypeMatrix)
+  nr <- nrow(PhenotypeMatrix)
+  MaxV <- max(nc,nr)
+  
+  wf <- nc*(2/3)
+  hf <- nr*(3/3)
+  
+  if (hf>wf){heightfactor <- 1;widthfactor <- wf/hf}
+  if (hf<wf){widthfactor <- 1;heightfactor <- hf/wf}
+  if (hf == wf){widthfactor <- 1;heightfactor <- 1}
+  
+  ##Margins <- (1/MaxV)/3
+  Margins <- 0.05
+  
+  # graphlist
+  graphlist <- list()
+  
+  pdf(file=paste(name,".pdf",sep=''),height=(MaxV*PDFFactor)*heightfactor,width=(MaxV*PDFFactor)*widthfactor)
+  grid.newpage()
+  top.vp <- viewport(width=1,height=1,layout=grid.layout(nr+1,nc+1,
+  	        widths=unit(c(Margins,rep((1-(Margins))/nc,MaxV)),rep("npc",nc+1)),
+  	        heights=unit(c(Margins,rep((1-(Margins))/nr,MaxV)),rep("npc",nr+1)))) 
+  pushViewport(top.vp)
+  
+  for (i in 1:nrow(PhenotypeMatrix)){
+    for (j in 1:ncol(PhenotypeMatrix)){
+      if (Pheno[Pheno$filename.variablename == PhenotypeMatrix[i,j],"condition"] == "bsl"){Condition <- "NSD"} else {Condition <- "SD"} # set condition
+      HPD <- CreateHPD(Condition=Condition)
+      ##HPD <- RemoveUNCnodes(HPD)
+      HPD <- FilterByCorrelationWithPhenotype(HPD,GeneCorrelationThreshold,MetaboCorrelationThreshold,PS=PhenotypeMatrix[i,j],Condition=Condition)
+      HPD <- Recolor(HPD)
+      ##HPD <- PartialCorrelationLiverCortex(HPD,Condition=Condition)
+      ReducedHPD <- ReformatHPD(HPD)
+      
+      ReducedHPD$edges$weight <- 2
+      ReducedHPD$nodes$size <- .8
+      ReducedHPD$nodes$size[ReducedHPD$nodes$axis==1 & ReducedHPD$nodes$radius>1000] <- .5
+      ReducedHPD$edges$color[ReducedHPD$edges$info=="ciseQTL"] <- '#32cd32'
+      ReducedHPD$nodes$color[ReducedHPD$nodes$axis==3] <- rgb(215/256,95/256,89/256)
+      ReducedHPD$nodes$color[ReducedHPD$nodes$axis==2] <- rgb(92/256,96/256,228/256)
+      ReducedHPD$nodes$color[ReducedHPD$nodes$axis==1 & ReducedHPD$nodes$radius<=1000] <- rgb(217/256,216/256,22/256)
+      ReducedHPD$nodes$color[ReducedHPD$nodes$axis==1 & ReducedHPD$nodes$radius>1000] <- rgb(1,1,1)
+      
+      if (length(HighlightGene) != 0){ReducedHPD <- Highlight(ReducedHPD,HighlightGene)}
+
+      plotHive2(ReducedHPD,np=FALSE,p1=i+1,p2=j+1,main="")
+      DisplayNodeByConnection(HPD,3,PhenotypeMatrix[i,j])
+      if (i == 1){grid.text(Cname[j],y=.5,vp=viewport(layout.pos.col = j+1, layout.pos.row = 1),gp=gpar((fontsize=MaxV*PDFFactor)/2,col="black"))}
+      if (j == 1){grid.text(Rname[i],y=.5,rot=90,vp=viewport(layout.pos.col = 1, layout.pos.row = i+1),gp=gpar(fontsize=(MaxV*PDFFactor)/2,col="black"))}
+      
+      ##graphresults <- DisplayNodeByTwoConnection_Igraph(HPD,HighlightGene)
+      graphresults <- NA
+      if (is.na(graphresults)==FALSE){
+        graphlist[[PhenotypeMatrix[i,j]]] <- graphresults
+      }
+    }
+  }
+  save(graphlist,file="graphlist.Rdata")
+  dev.off()
+  
+  # Plot graph
+  if (length(graphlist)>=1){
+    pdf(file=paste(name,"_2connectionGraphs.pdf",sep=''),height=20,width=15)
+    for (i in names(graphlist)){
+      print(i)
+      e <- get.edgelist(graphlist[[i]][[1]],names=FALSE)
+      l <- qgraph.layout.fruchtermanreingold(e,vcount=vcount(graphlist[[i]][[1]]))
+      plot(graphlist[[i]][[1]],vertex.label.dist=.2,main=i,layout=l,vertex.size=2)
+      grid.newpage()
+      grid.table(graphlist[[i]][[2]])
+      }
+    dev.off()
+  }
+}
+
+```
+
+Function used for highlighting some genes 
+
+```{r}
+
+Highlight <- function(HPD,HighlightGenes){
+  # get ID of highlighted genes
+  ids <- HPD$nodes$id[which(HPD$nodes$lab %in% HighlightGenes)]
+  if (length(ids)!=0){
+    
+    # Increase size of selected genes
+    HPD$nodes$size[which(HPD$nodes$id %in% ids)] <- 2
+    HPD$edges$weight[which(HPD$edges$id1 %in% ids | HPD$edges$id2 %in% ids)] <- 4
+    
+    # Increase transparency of other genes
+    HPD$nodes$color[which(! HPD$nodes$id %in% ids & HPD$nodes$lab != 'Max')] <- rgb(1,1,1,alpha=0.2)
+    HPD$edges$color[which(! HPD$edges$id1 %in% ids & ! HPD$edges$id2 %in% ids)] <- rgb(1,1,1,alpha=0.2)
+  } else {
+    HPD$nodes$color <- rgb(1,1,1,alpha=0.2)
+    HPD$edges$color <- rgb(1,1,1,alpha=0.2)
+  }
+  return(HPD)
+}
+
+```
+
+Function to get possible connection for a nodes with other axis (used for function below)
+
+```{r}
+
+ConnectionMatrix <- function(HPD){
+  CortexGenes <- HPD$nodes$lab[HPD$nodes$axis==2]
+  LiverGenes <- HPD$nodes$lab[HPD$nodes$axis==3]
+  
+  mCortex <- matrix(ncol=3,nrow=length(CortexGenes))
+  mLiver <- matrix(ncol=3,nrow=length(LiverGenes))
+  rownames(mCortex) <- CortexGenes
+  rownames(mLiver) <- LiverGenes
+  
+  V <- c()
+  V <- HPD$nodes$axis[HPD$nodes$axis==2 | HPD$nodes$axis==3 | (HPD$nodes$axis==1 & HPD$nodes$radius < (AxisScalingFactor)+1)]
+  n <- HPD$nodes$id[HPD$nodes$axis==2 | HPD$nodes$axis==3 | (HPD$nodes$axis==1 & HPD$nodes$radius < (AxisScalingFactor)+1)]
+  V <- c(V,rep(6,length(HPD$nodes$axis[HPD$nodes$axis==1 & HPD$nodes$radius > (AxisScalingFactor-(AxisScalingFactor)+1)])))
+  n <- c(n,HPD$nodes$id[HPD$nodes$axis==1 & HPD$nodes$radius > (AxisScalingFactor-(AxisScalingFactor)+1)])
+  names(V) <- n
+  
+  # For each gene selected, get ID of axis 2 or 3 and look at connections
+  for (gC in CortexGenes){
+    ids <- HPD$nodes$id[HPD$nodes$lab==gC & HPD$nodes$axis==2]
+    idsSelect <- unlist(HPD$edges[HPD$edges$id1 %in% ids | HPD$edges$id2 %in% ids,c("id1","id2")])
+    idsSelect <- idsSelect[! idsSelect %in% ids]
+    if (length(idsSelect)>0){
+      idsSelect <- as.character(idsSelect)
+      for (id in idsSelect){
+        if (V[id]==1){mCortex[gC,1] <- 1}
+        if (V[id]==4){mCortex[gC,2] <- 1}
+        if (V[id]==6){mCortex[gC,3] <- 1}
+      }
+    }
+  }
+  
+  for (gL in LiverGenes){
+    ids <- HPD$nodes$id[HPD$nodes$lab==gL & HPD$nodes$axis==3]
+    idsSelect <- unlist(HPD$edges[HPD$edges$id1 %in% ids | HPD$edges$id2 %in% ids,c("id1","id2")])
+    idsSelect <- idsSelect[! idsSelect %in% ids]
+    if (length(idsSelect)>0){
+      idsSelect <- as.character(idsSelect)
+      for (id in idsSelect){
+        if (V[id]==1){mLiver[gL,1] <- 1}
+        if (V[id]==3){mLiver[gL,2] <- 1}
+        if (V[id]==6){mLiver[gL,3] <- 1}
+      }
+    }
+  }
+  return(list(mCortex,mLiver))
+}
+
+```
+
+Get only nodes that are connected to 3 different axis
+
+```{r}
+
+# Display nodes that have 3 different connections
+DisplayNodeByConnection <- function(HPD,ConnectionsRequired,PhenoName){
+  # Get Connection matrix
+  CM <- ConnectionMatrix(HPD)
+  mCortex <- CM[[1]]
+  mLiver <- CM[[2]]
+  
+  # Get genes with at least 1 connection to metabolites, markers and/or other tissue
+  mmCortex <- apply(mCortex,1,sum,na.rm=TRUE)
+  mmCortex <- mmCortex[mmCortex>=ConnectionsRequired]
+  mmLiver <- apply(mLiver,1,sum,na.rm=TRUE)
+  mmLiver <- mmLiver[mmLiver>=ConnectionsRequired]
+ 
+  print(paste("Phenotype:",PhenoName))
+  if (length(mmCortex)>0){
+    for (i in names(mmCortex)){
+      print(paste(i,"this gene in Cortex is connected to:"))
+      ids <- HPD$nodes$id[HPD$nodes$lab==i & HPD$nodes$axis==2]
+      idsSelect <- unlist(HPD$edges[HPD$edges$id1 %in% ids | HPD$edges$id2 %in% ids,c("id1","id2")])
+      idsSelect <- idsSelect[! idsSelect %in% ids]
+      for (j in HPD$nodes$lab[HPD$nodes$id %in% idsSelect]){print(j)}
+      cat("\n")
+    }
+  }
+  
+  if (length(mmLiver)>0){
+    for (i in names(mmLiver)){
+      print(paste(i,"this gene in Liver is connected to:"))
+      ids <- HPD$nodes$id[HPD$nodes$lab==i & HPD$nodes$axis==3]
+      idsSelect <- unlist(HPD$edges[HPD$edges$id1 %in% ids | HPD$edges$id2 %in% ids,c("id1","id2")])
+      idsSelect <- idsSelect[! idsSelect %in% ids]
+      for (j in HPD$nodes$lab[HPD$nodes$id %in% idsSelect]){print(j)}
+      cat("\n")
+    }
+  }
+}
+
+```
+
+Get nodes that are connected with 2 other axes (version returning igraph object for plotting result after)
+
+```{r}
+DisplayNodeByTwoConnection_Igraph <- function(HPD,Main){
+  # Get Connection matrix
+  CM <- ConnectionMatrix(HPD)
+  mCortex <- CM[[1]]
+  mLiver <- CM[[2]]
+  
+  # Get genes with 2 connection with marker and metabolites
+  SelectedGenesCortex <- c()
+  SelectedGenesLiver <- c()
+  
+  if (length(Main)==0){
+      for (i in 1:nrow(mCortex)){
+        if ( ! is.na(mCortex[i,1]) & ! is.na(mCortex[i,3])){
+          SelectedGenesCortex <- c(SelectedGenesCortex,rownames(mCortex)[i])
+        }
+      }
+  }else{
+    idmainC <- HPD$nodes$id[which(HPD$nodes$lab %in% Main & HPD$nodes$axis==2)]
+    if (length(idmainC)>0){
+      markerlinkedmain <- HPD$edges[HPD$edges$id2 == idmainC & (HPD$edges$info == "ciseQTL" | HPD$edges$info == "transeQTL"),1]
+      genessecondid <- unique(HPD$edges$id2[HPD$edges$id1 %in% markerlinkedmain])
+      genessecondid <- genessecondid[! genessecondid %in% idmainC]
+      SelectedGenesCortex <- c(SelectedGenesCortex,HPD$nodes$lab[HPD$nodes$id %in% genessecondid & HPD$nodes$axis==2])
+      SelectedGenesLiver <- c(SelectedGenesLiver,HPD$nodes$lab[HPD$nodes$id %in% genessecondid & HPD$nodes$axis==3])
+      SelectedGenesCortex <- c(SelectedGenesCortex,HPD$nodes$lab[HPD$nodes$id %in% idmainC]) 
+    }
+  }
+
+
+  if (length(Main)==0){  
+    for (i in 1:nrow(mLiver)){
+      if ( ! is.na(mLiver[i,1]) & ! is.na(mLiver[i,3])){
+        SelectedGenesLiver <- c(SelectedGenesLiver,rownames(mLiver)[i])
+      }
+    }
+  }else{
+    idmainL <- HPD$nodes$id[which(HPD$nodes$lab %in% Main & HPD$nodes$axis==3)]
+    if (length(idmainL)>0){
+      markerlinkedmain <- HPD$edges[HPD$edges$id2 == idmainL & (HPD$edges$info == "ciseQTL" | HPD$edges$info == "transeQTL"),1]
+      genessecondid <- unique(HPD$edges$id2[HPD$edges$id1 %in% markerlinkedmain])
+      genessecondid <- genessecondid[! genessecondid %in% idmainL]
+      SelectedGenesCortex <- c(SelectedGenesCortex,HPD$nodes$lab[HPD$nodes$id %in% genessecondid & HPD$nodes$axis==2])
+      SelectedGenesLiver <- c(SelectedGenesLiver,HPD$nodes$lab[HPD$nodes$id %in% genessecondid & HPD$nodes$axis==3])
+      SelectedGenesLiver <- c(SelectedGenesLiver,HPD$nodes$lab[HPD$nodes$id %in% idmainL])     
+    }
+  }
+  
+  elist <- matrix(ncol=4,nrow=0)
+  if (length(SelectedGenesCortex)>=1){
+   for (i in SelectedGenesCortex){
+     idsgene <- HPD$nodes[HPD$nodes$lab==i & HPD$nodes$axis==2,1]
+     idsconnectednodes <- unique(unlist(HPD$edges[HPD$edges$id1 %in% idsgene | HPD$edges$id2 %in% idsgene,c(1,2)]))
+     idsconnectednodes <- idsconnectednodes[-which(idsconnectednodes %in% idsgene)]
+     for (j in idsconnectednodes){
+       nameconnectednode <- HPD$nodes[HPD$nodes$id==j,"lab"]
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==1 & HPD$nodes[HPD$nodes$id==j,"radius"] > 1001){elist <- rbind(elist,c(i,nameconnectednode,"Cortex","Marker"))}
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==3){elist <- rbind(elist,c(i,nameconnectednode,"Cortex","Liver"))}
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==1 & HPD$nodes[HPD$nodes$id==j,"radius"] < 1001){elist <- rbind(elist,c(i,nameconnectednode,"Cortex","Metabolite"))}
+     }
+   } 
+  }
+  
+  if (length(SelectedGenesLiver)>=1){
+   for (i in SelectedGenesLiver){
+     idsgene <- HPD$nodes[HPD$nodes$lab==i & HPD$nodes$axis==3,1]
+     idsconnectednodes <- unique(unlist(HPD$edges[HPD$edges$id1 %in% idsgene | HPD$edges$id2 %in% idsgene,c(1,2)]))
+     idsconnectednodes <- idsconnectednodes[-which(idsconnectednodes %in% idsgene)]
+     for (j in idsconnectednodes){
+       nameconnectednode <- HPD$nodes[HPD$nodes$id==j,"lab"]
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==1 & HPD$nodes[HPD$nodes$id==j,"radius"] > 1001){elist <- rbind(elist,c(i,nameconnectednode,"Liver","Marker"))}
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==2){elist <- rbind(elist,c(i,nameconnectednode,"Liver","Cortex"))}
+       if (HPD$nodes[HPD$nodes$id==j,"axis"]==1 & HPD$nodes[HPD$nodes$id==j,"radius"] < 1001){elist <- rbind(elist,c(i,nameconnectednode,"Liver","Metabolite"))}
+     }
+   } 
+  }
+  if (nrow(elist)>=1){
+    elist <- unique(elist)
+    elist[,1] <- paste(elist[,1],elist[,3],sep='_')
+    elist[,2] <- paste(elist[,2],elist[,4],sep='_')
+    G <- graph_from_edgelist(elist[,c(1,2)],directed=FALSE)
+    ##set.graph.attribute(G, "layout", layout.kamada.kawai(G))
+    V(G)[elist[,1][elist[,3]=="Cortex"]]$color <- "red"
+    V(G)[elist[,1][elist[,3]=="Liver"]]$color <- "lightblue"
+    V(G)[elist[,2][elist[,4]=="Cortex"]]$color <- "red"
+    V(G)[elist[,2][elist[,4]=="Liver"]]$color <- "lightblue"
+    V(G)[elist[,2][elist[,4]=="Marker"]]$color <- "grey"
+    V(G)[elist[,2][elist[,4]=="Metabolite"]]$color <- "yellow"
+    ##V(G)$name <- gsub("_Cortex",'',names(V(G)))
+    ##V(G)$name <- gsub("_Liver",'',names(V(G)))
+    ##V(G)$name <- gsub("_Marker",'',names(V(G)))
+    ##V(G)$name <- gsub("_Metabolite",'',names(V(G)))
+    return(list(G,elist))
+  }else{return(NA)}
+}
+
+```
+
+Function to reformat HPD object (remainders of merging axis 2 with 3 and axis 4 with 5)
+
+```{r}
+
+# Reformat HPD object to fit other plotHive2 function requirements
+ReformatHPD<-function(HPD){
+  NewHPD<-HPD
+  VectorCLocation<-as.integer(HPD$edges$id1[HPD$edges$info=="CLocation"])
+  names(VectorCLocation)<-as.integer(HPD$edges$id2[HPD$edges$info=="CLocation"])
+  VectorLLocation<-as.integer(HPD$edges$id1[HPD$edges$info=="LLocation"])
+  names(VectorLLocation)<-as.integer(HPD$edges$id2[HPD$edges$info=="LLocation"])
+  VectorLocation<-c(VectorCLocation,VectorLLocation)
+  ##NewHPD$nodes<-NewHPD$nodes[NewHPD$nodes$axis != 2 & NewHPD$nodes$axis != 5,]
+  NewHPD$nodes$axis[NewHPD$nodes$axis==2]<-as.integer(2)
+  NewHPD$nodes$axis[NewHPD$nodes$axis==3]<-as.integer(3)
+  NewHPD$edges<-NewHPD$edges[NewHPD$edges$info!="LLocation" & NewHPD$edges$info!="CLocation",]
+  NewHPD$edges$id2[NewHPD$edges$info=="ciseQTL"]<-VectorLocation[as.character(NewHPD$edges$id2[NewHPD$edges$info=="ciseQTL"])]
+  NewHPD$edges$id2[NewHPD$edges$info=="transeQTL"]<-VectorLocation[as.character(NewHPD$edges$id2[NewHPD$edges$info=="transeQTL"])]
+  NewHPD$edges$id1[NewHPD$edges$info=="CorGML"]<-VectorLocation[as.character(NewHPD$edges$id1[NewHPD$edges$info=="CorGML"])]
+  NewHPD$edges$id1[NewHPD$edges$info=="CorGMC"]<-VectorLocation[as.character(NewHPD$edges$id1[NewHPD$edges$info=="CorGMC"])]
+  return(NewHPD)
+}
+
+```
+
+Highlight function modified for better results
+
+```{r, eval=FALSE, include=FALSE}
+
+Highlight2 <- function(HPD,Main){
+
+  # get ID of highlighted genes
+  idmain <- HPD$nodes$id[which(HPD$nodes$lab %in% Main)]
+  markerlinkedmain <- HPD$edges[HPD$edges$id2 %in% idmain & (HPD$edges$info == "ciseQTL" | HPD$edges$info == "transeQTL"),1]
+  genessecondid <- unique(HPD$edges$id2[HPD$edges$id1 %in% markerlinkedmain])
+  genessecondid <- genessecondid[! genessecondid %in% idmain]
+  ##secondgenes <- HPD$nodes$lab[HPD$nodes$id %in% genessecondid]
+  ##idlink <- HPD$nodes$id[which(HPD$nodes$lab %in% HighlightGenes)] 
+  idlink <- genessecondid
+  ids <- c(idlink,idmain)  
+
+  if (length(ids)!=0){
+
+    # Increase size of selected genes
+    HPD$nodes$size[which(HPD$nodes$id %in% idlink)] <- 1
+    HPD$edges$weight[which(HPD$edges$id1 %in% ids | HPD$edges$id2 %in% idlink)] <- .5
+    
+    # Increase size of selected genes
+    HPD$nodes$size[which(HPD$nodes$id %in% idmain)] <- 2
+    HPD$edges$weight[which(HPD$edges$id1 %in% idmain | HPD$edges$id2 %in% idmain)] <- 4
+    
+    # Increase transparency of other genes
+    HPD$nodes$color[which(! HPD$nodes$id %in% ids & HPD$nodes$lab != 'Max')] <- rgb(1,1,1,alpha=0.05)
+    HPD$edges$color[which(! HPD$edges$id1 %in% ids & ! HPD$edges$id2 %in% ids)] <- rgb(1,1,1,alpha=0.05)
+  } else {
+    HPD$nodes$color <- rgb(1,1,1,alpha=0.2)
+    HPD$edges$color <- rgb(1,1,1,alpha=0.2)
+  }
+  print(HPD$edges[which(HPD$edges$id1 %in% idmain | HPD$edges$id2 %in% idmain),])
+  return(HPD)
+}
+
+```
+
+
+# Plot figures
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"RECdiff_States_2hours",sep='.')
+##HighlightGene <- c("Acot11","Taf1b")
+HighlightGene <- c()
+PhenotypeMatrix <- matrix(ncol=12,nrow=3)
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(345,356),1])
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(357,368),1])
+PhenotypeMatrix[3,] <- as.character(Pheno[seq(369,380),1])
+print(PhenotypeMatrix)
+Cname <- paste("Time period \n",seq(4,15))
+Rname <- c("Wake","NREM","REM")
+##Rname <- c("NREM")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"REC_States_ThetaDomintatedWakefulness",sep='.')
+HighlightGene <- c()
+PhenotypeMatrix <- matrix(ncol=5,nrow=1)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(160,164),1])
+print(PhenotypeMatrix)
+Cname <- c("Lr h","Lr %","Dr h","Dr %","Drb %")
+Rname <- c("TDW")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"REC_States_ThetaDomintatedWakefulness_HL_Sbno1",sep='.')
+HighlightGene <- c('Sbno1')
+PhenotypeMatrix <- matrix(ncol=5,nrow=1)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(160,164),1])
+print(PhenotypeMatrix)
+Cname <- c("Lr h","Lr %","Dr h","Dr %","Drb %")
+Rname <- c("TDW")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"RECdiff_States_24hHighResolution",sep='.')
+HighlightGene <- c()
+PhenotypeMatrix <- matrix(ncol=7,nrow=3)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(94,100),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(101,107),1])
+PhenotypeMatrix[3,] <- as.character(Pheno[seq(108,114),1])
+print(PhenotypeMatrix)
+Cname <- c("Time 2","Time 3","Time 4","Time 5","Time 3+4","Time 2+3+4","Time 2+3+4+5")
+Rname <- c("Wake","NREM","REM")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"RECdiff_States_24hHighResolution_HL_Acot11",sep='.')
+HighlightGene <- c('Acot11')
+PhenotypeMatrix <- matrix(ncol=7,nrow=3)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(94,100),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(101,107),1])
+PhenotypeMatrix[3,] <- as.character(Pheno[seq(108,114),1])
+print(PhenotypeMatrix)
+Cname <- c("Time 2","Time 3","Time 4","Time 5","Time 3+4","Time 2+3+4","Time 2+3+4+5")
+Rname <- c("Wake","NREM","REM")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"BSL.REC.RECdiff_EEG_ThetaPeakFrequency",sep='.')
+HighlightGene <- c()
+PhenotypeMatrix <- matrix(ncol=5,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(165,169),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(170,174),1])
+print(PhenotypeMatrix)
+Cname <- c("bsl","rec1","rec2","recVSbsl1","recVSbsl2")
+Rname <- c("During REM Light","During TDW Dark")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"BSL.REC.RECdiff_EEG_ThetaPeakFrequency_HL_Cyp4a32",sep='.')
+HighlightGene <- c('Cyp4a32')
+PhenotypeMatrix <- matrix(ncol=5,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(165,169),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(170,174),1])
+print(PhenotypeMatrix)
+Cname <- c("bsl","rec1","rec2","recVSbsl1","recVSbsl2")
+Rname <- c("During REM Light","During TDW Dark")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"REC_EEG_EEGBandsPower",sep='.')
+HighlightGene <- c()
+PhenotypeMatrix <- matrix(ncol=8,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(316,323),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(324,331),1])
+print(PhenotypeMatrix)
+Cname <- c("Delta","Slow Delta","Fast Delta","Theta","Sigma","Beta","Gamma Slow","Gamma Fast")
+Rname <- c("REC","REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"REC_EEG_EEGBandsPower_HL_Wrn",sep='.')
+HighlightGene <- c('Wrn')
+PhenotypeMatrix <- matrix(ncol=8,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(316,323),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(324,331),1])
+print(PhenotypeMatrix)
+Cname <- c("Delta","Slow Delta","Fast Delta","Theta","Sigma","Beta","Gamma Slow","Gamma Fast")
+Rname <- c("REC","REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r}
+name <- paste(FILENAME,"REC_EEG_EEGBandsPower_HL_Kif16b",sep='.')
+HighlightGene <- c('Kif16b')
+PhenotypeMatrix <- matrix(ncol=8,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(316,323),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(324,331),1])
+print(PhenotypeMatrix)
+Cname <- c("Delta","Slow Delta","Fast Delta","Theta","Sigma","Beta","Gamma Slow","Gamma Fast")
+Rname <- c("REC","REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r}
+name <- paste(FILENAME,"REC_EEG_EEGBandsPower_HL_Wrn_Kif16b",sep='.')
+HighlightGene <- c('Wrn','Kif16b')
+PhenotypeMatrix <- matrix(ncol=8,nrow=2)
+PhenotypeMatrix[1,] <- as.character(Pheno[seq(316,323),1])
+PhenotypeMatrix[2,] <- as.character(Pheno[seq(324,331),1])
+print(PhenotypeMatrix)
+Cname <- c("Delta","Slow Delta","Fast Delta","Theta","Sigma","Beta","Gamma Slow","Gamma Fast")
+Rname <- c("REC","REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"del1_rat_Wrn",sep='.')
+HighlightGene <- c('Wrn')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[325,1])
+print(PhenotypeMatrix)
+Cname <- c("Del1_rat")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"del1_rat_Wrn_Dusp4_Adrb3",sep='.')
+HighlightGene <- c('Wrn','Dusp4','Adrb3')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[325,1])
+print(PhenotypeMatrix)
+Cname <- c("Del1_rat")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"n3d_Acot11",sep='.')
+HighlightGene <- c('Acot11')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[102,1])
+print(PhenotypeMatrix)
+Cname <- c("n3d")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"n3d_Acot11_Tceanc2_Mroh7",sep='.')
+HighlightGene <- c('Acot11','Tceanc2','Mroh7')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[102,1])
+print(PhenotypeMatrix)
+Cname <- c("n3d")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"TDW_Drh_Sbno1",sep='.')
+HighlightGene <- c('Sbno1')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[162,1])
+print(PhenotypeMatrix)
+Cname <- c("TDW")
+Rname <- c("Drh")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"TPF_L1d_Cyp4a32",sep='.')
+HighlightGene <- c('Cyp4a32')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[168,1])
+print(PhenotypeMatrix)
+Cname <- c("TPF")
+Rname <- c("L1d")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"TPF_L1d_Cyp4a32_C530005A16Rik",sep='.')
+HighlightGene <- c('Cyp4a32','C530005A16Rik')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[168,1])
+print(PhenotypeMatrix)
+Cname <- c("TPF")
+Rname <- c("L1d")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"REM_ratDr_Hamp2",sep='.')
+HighlightGene <- c('Hamp2')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[149,1])
+print(PhenotypeMatrix)
+Cname <- c("ratDr")
+Rname <- c("REM")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"REM_ratDr_Hamp2_BC053749",sep='.')
+HighlightGene <- c('Hamp2','BC053749')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[149,1])
+print(PhenotypeMatrix)
+Cname <- c("ratDr")
+Rname <- c("REM")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"gam2_rat_Cml5",sep='.')
+HighlightGene <- c('Cml5')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[331,1])
+print(PhenotypeMatrix)
+Cname <- c("gam2")
+Rname <- c("rat")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"gam2_rat_Cml5_Pcdhgb6",sep='.')
+HighlightGene <- c('Cml5','Pcdhgb6')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[331,1])
+print(PhenotypeMatrix)
+Cname <- c("gam2")
+Rname <- c("rat")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME,"r_GLpct_Megf10",sep='.')
+HighlightGene <- c('Megf10')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[122,1])
+print(PhenotypeMatrix)
+Cname <- c("r")
+Rname <- c("GL%")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"n3_Fam45a",sep='.')
+HighlightGene <- c('Fam45a')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[78,1])
+print(PhenotypeMatrix)
+Cname <- c("n3")
+Rname <- c("REC")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"n3_Fam45a_Cacul1",sep='.')
+HighlightGene <- c('Fam45a','Cacul1')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[78,1])
+print(PhenotypeMatrix)
+Cname <- c("n3")
+Rname <- c("REC")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"del1_r_Kif16b",sep='.')
+HighlightGene <- c('Kif16b')
+PhenotypeMatrix <- matrix(ncol=1,nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[317,1])
+print(PhenotypeMatrix)
+Cname <- c("del1")
+Rname <- c("REC")
+PlotFigure(PhenotypeMatrix,Rname,Cname)
+```
+
+
+```{r,eval=T}
+name <- paste(FILENAME, "n3.4d_Taf1b", sep='.')
+HighlightGene <- c('Taf1b')
+PhenotypeMatrix <- matrix(ncol=1, nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[105,1])
+print(PhenotypeMatrix)
+Cname <- c("n3d")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix, Rname, Cname)
+```
+
+```{r,eval=T}
+name <- paste(FILENAME,"n3.4d_Taf1b_Lpin1", sep='.')
+HighlightGene <- c('Taf1b', 'Lpin1')
+PhenotypeMatrix <- matrix(ncol=1, nrow=1)
+PhenotypeMatrix[1,1] <- as.character(Pheno[105,1])
+print(PhenotypeMatrix)
+Cname <- c("n3d")
+Rname <- c("REC vs BSL")
+PlotFigure(PhenotypeMatrix, Rname, Cname)
+```
+
+# Versions
+
+This report is built with R version `r paste(R.version$major, R.version$minor, sep=".")`. More info:
+
+```{r}
+sessionInfo()
+```

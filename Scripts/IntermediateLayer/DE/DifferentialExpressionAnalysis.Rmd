@@ -1,0 +1,291 @@
+---
+title: "Differential Expression"
+author: "Nastassia Gobet, Maxime Jan"
+date: '13 November 2018 - '
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: tango
+    number_sections: no
+    theme: readable
+    toc: yes
+    toc_depth: 4
+  pdf_document:
+    fig_caption: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=TRUE, fig.path = "//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Reproducibility/DifferentialExpression/")
+
+# set working directory
+##setwd("//nas.unil.ch/CIG/GROUPS/FRANKEN/common/PROJECTS/BXD/Analysis/Reproducibility/DifferentialExpression")
+```
+
+# GOAL
+
+Perform the differential gene expression in liver and cortex.
+
+
+# Packages
+
+```{r}
+# loading needed pacakges
+if (!requireNamespace("BiocManager"))
+  install.packages("BiocManager")
+##BiocManager::install()
+library(limma)
+##BiocManager::install(c('edgeR', 'DESeq'))
+library(edgeR)
+##library(DESeq)
+##install.packages("reshape")
+library(reshape)
+##library(ggplot2)
+##install.packages("sqldf")
+##library(sqldf)
+##install.packages("gdata")
+##library(gdata)
+
+library(vioplot)
+```
+
+# DATA
+
+## gene expression table
+
+The input data are raw counts of gene expression (counted by ht-count). Rows are genes and columns are libraries/samples. (One library per sample, no replicate except for parental lines).
+
+```{r}
+# Import the raw counts table for liver
+countsTableL <- read.delim('../Data/RawCounts.Liver.txt', header=TRUE, row.names=1, stringsAsFactors=TRUE, sep="\t")
+# Import the raw counts table for cortex
+countsTableC <- read.delim('../Data/RawCounts.Cortex.txt', header=TRUE, row.names=1, stringsAsFactors=TRUE, sep="\t")
+```
+
+There are `r length(colnames(countsTableL))` libraries and `r length(rownames(countsTableL))` genes for liver, and `r length(colnames(countsTableC))` libraries and `r length(rownames(countsTableC))` genes for cortex.
+
+## phenotype table
+
+This is a table that contains different attributes (columns) for each sample/library (rows). The attributes are:
+
+* the condition (SD or NSD)
+* the BXD strain (number of the BXD strain) 
+
+!I converted the excel files in tab files!
+
+```{r}
+# retrieve and format sample info for liver
+keyL <- read.csv('../Data/BXD_Shanaz_samples_Liver.tab', sep="\t")
+keySampleL <- keyL[,c("sampleShort","treatment","strain","sample_GATK")]
+keySampleL$sampleTreatment <- paste(keySampleL$strain, keySampleL$treatment, sep="_")
+
+# retrieve and format sample info for cortex
+keyC <- read.csv('../Data/BXD_Shanaz_samples.tab', sep="\t")
+keySampleC <- keyC[,c("sampleShort","treatment","strain","sample_GATK")]
+keySampleC$sampleTreatment <- paste(keySampleC$strain, keySampleC$treatment, sep="_")
+```
+
+
+# Analysis
+
+## Filtering
+
+We want to filter the expression data to take only gene with average expression above 10. This is an arbitrary threshold to remove genes that are too noisy.
+
+```{r}
+# create a subset of the count table, filtering out rows (genes) with average counts <= 10
+countsTableL_sub <- countsTableL[which(apply(countsTableL, MARGIN=1, FUN=mean)>10),]
+countsTableC_sub <- countsTableC[which(apply(countsTableC, MARGIN=1, FUN=mean)>10),]
+```
+
+The filtered subset has `r dim(countsTableL_sub)[1]` genes (over `r dim(countsTableL)[1]` genes in total dataset) for liver. The filtered subset has `r dim(countsTableC_sub)[1]` genes (over `r dim(countsTableC)[1]` genes in total dataset) for cortex.
+
+## Standarization
+
+The normalization is performed using the Weigthed trimmed mean of M-values (TMM) method of the edgeR package. This step standarizes the counts gene expression to take into account the variation in library size (=number of counts per library), the variation in length of the transcripts, and in RNA population variation. (Robinson, Genome Biology, 2010).
+
+
+```{r standarization}
+# formatting for edgeR (creates a DGEList object from the dataframe)
+dL <- DGEList(counts=countsTableL_sub)
+dC <- DGEList(counts=countsTableC_sub)
+
+# calculate the normalization factors for each sample
+dL <- calcNormFactors(dL, method="TMM")
+dC <- calcNormFactors(dC, method="TMM")
+### what sample is the reference for the normalisation factor?
+
+# check the distribution of the normalisation factors
+vioplot(dL$samples$norm.factors, col="white", horizontal=TRUE, names="")
+title(main="Distribution of normalisation factors for liver", xlab="Normalisation factors")
+vioplot(dC$samples$norm.factors, col="white", horizontal=TRUE, names="")
+title(main="Distribution of normalisation factors for cotex", xlab="Normalisation factors")
+
+# calculate CPM and normalize the counts 
+normalizedCPMcountsL <- data.frame(cpm(dL, normalized.lib.sizes=TRUE))
+normalizedCPMcountsC <- data.frame(cpm(dC, normalized.lib.sizes=TRUE))
+
+# Export normalized CPM
+write.table(normalizedCPMcountsL, file="edgeR_normalized_CPM_Liver.tab", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(normalizedCPMcountsC, file="edgeR_normalized_CPM_Cortex.tab", row.names=TRUE, sep="\t", quote=FALSE)
+```
+
+The range of normalisation factors is between `r min(dL$samples$norm.factors)` and `r max(dL$samples$norm.factors)` for liver and between `r min(dC$samples$norm.factors)` and `r max(dC$samples$norm.factors)` for cortex. Both are close to 1, so the samples have a similar total RNA composition.
+
+## General analysis of dataset
+
+The goal is to compare the samples using different methods and see if it cluster by condition (SD vs NSD) or/and by mouse line.
+
+
+### MDS
+
+Multidimensional scaling (MDS) analysis. Labels are colored according to their mouse line.
+
+
+#### before normalization
+
+```{r MDS, fig.height=10, fig.width=10}
+
+# change the palette used to have color of labels that are readable
+palette(c("black", "skyblue", "green4", "orange2", "darkred", "darkviolet", "darkblue", "darkolivegreen2", "chocolate4","plum1"))
+
+# plot the MDS results
+plotMDS(countsTableL_sub, main="MDS in liver", top=500, labels=keySampleL$sampleTreatment, col=as.numeric(keySampleL$strain), gene.selection="common")
+plotMDS(countsTableC_sub, main="MDS in cortex", top=500, labels=keySampleC$sampleTreatment, col=as.numeric(keySampleC$strain), gene.selection="common")
+```
+
+For liver, PC2 separates by condition (SD vs NSD). PC1 pattern is unclear. Samples are not clustered by mouse line.
+
+For cortex, PC2 separates by condition (SD vs NSD). PC1 pattern is unclear. Samples are not clustered by mouse line.
+
+
+#### after normalization
+
+```{r MDS_TMM, fig.height=10, fig.width=10}
+
+# change the palette used to have color of labels that are readable
+palette(c("black", "skyblue", "green4", "orange2", "darkred", "darkviolet", "darkblue", "darkolivegreen2", "chocolate4","plum1"))
+
+# plot the MDS results
+plotMDS(normalizedCPMcountsL, main="MDS in liver", top=500, labels=keySampleL$sampleTreatment, col=as.numeric(keySampleL$strain), gene.selection="common")
+plotMDS(normalizedCPMcountsC, main="MDS in cortex", top=500, labels=keySampleC$sampleTreatment, col=as.numeric(keySampleC$strain), gene.selection="common")
+```
+
+For liver, PC2 separates by condition (SD vs NSD). PC1 pattern is unclear. Samples are not clustered by mouse line.
+
+For cortex, PC1 separates by condition (SD vs NSD). PC2 pattern is unclear. Samples are not clustered by mouse line.
+
+
+### PCA
+
+Principal composant analysis (PCA).
+
+```{r PCA_TMM, fig.height=10, fig.width=10}
+
+# calculate PC
+PC_L <- prcomp(t(normalizedCPMcountsL))
+PC_C <- prcomp(t(normalizedCPMcountsC))
+
+# plot the PCA results
+plot(PC_L$x[,"PC1"], PC_L$x[,"PC2"], main="PCA in liver", xlab="PC1", ylab="PC2", pch="")
+text(PC_L$x[,"PC1"], PC_L$x[,"PC2"], labels=keySampleL$sampleTreatment, pos=2, offset=-2, col=as.numeric(keySampleL$strain))
+
+plot(PC_C$x[,"PC1"], PC_C$x[,"PC2"], main="PCA in cortex", xlab="PC1", ylab="PC2", pch="")
+text(PC_C$x[,"PC1"], PC_C$x[,"PC2"], labels=keySampleC$sampleTreatment, pos=2, offset=-2, col=as.numeric(keySampleC$strain))
+
+```
+
+For liver, PC2 separates by condition (SD vs NSD). PC1 pattern is unclear. Samples are not clustered by mouse line.
+
+For cortex, PC1 separates by condition (SD vs NSD). PC2 pattern is unclear. Samples are not clustered by mouse line.
+
+
+
+### Distance
+
+The distance between sample is calculated using euclidean distance measure.
+
+```{r Distance_TMM, samples_distances_heatmap, fig.height=10, fig.width=10}
+# calculate the distance between samples
+distsL <- dist(t(normalizedCPMcountsL))
+distsC <- dist(t(normalizedCPMcountsC))
+
+# plot the distances into a heatmap and add a quick legend
+heatmap(as.matrix(distsL), main="Distance in liver", symm=TRUE, margins=c(5, 5))
+legend("topright", legend=c("more similar","more distant"), horiz=TRUE, fill=heat.colors(2), title="Distance")
+heatmap(as.matrix(distsC), main="Distance in cortex", symm=TRUE, margins = c(5, 5))
+legend("topright", legend=c("more similar","more distant"), horiz=TRUE, fill=heat.colors(2), title="Distance")
+```
+
+The samples seem to cluster by treatment (SD vs NSD) rather than by genotype (BXD line).
+
+
+## Differential gene expression
+
+Find which genes are up or down regulated by SD treatment (SD vs NSD).
+
+This is done here using functions from limma package:
+
+* model.matrix creates a model matrix (also called design matrix) which describes which samples are compared, in a voom-friendly format.
+* voom prepares the data to DE analysis by considering different variances for different samples/libraries (=observations) & genes. The step are: log2CPM transformation, estimate mean-variance relationship, estimate.
+* lmFit fits linear model (a line with slope and intercept) for each gene. It uses least squares fitting method (method="ls").
+* eBayes computes statistics by empirical Bayes moderation (moderated t-statistics, moderated F-statistic, B is the log-odds). The goal is to rank genes from the more to the less differentially expressed.
+* toptable extracts top ranked genes from a fit.
+
+```{r DE}
+# format condition vector
+condsL <- factor(keySampleL$treatment)
+condsC <- factor(keySampleC$treatment)
+
+# create the design matrix by paired samples
+strainL <- factor(keySampleL$strain)
+strainC <- factor(keySampleC$strain)
+designL <- model.matrix(~strainL+condsL)
+designC <- model.matrix(~strainC+condsC)
+
+# by default the normalization method is quantile (voom calls normalizeBetweenArrays), here TMM factors computed before are used.
+# plot the mean-variance trend
+resL <- voom(countsTableL_sub, designL, plot=TRUE, lib.size=colSums(countsTableL_sub)*dL$samples$norm.factors)
+title(main="liver", line=0.5)
+resC <- voom(countsTableC_sub, designC, plot=TRUE, lib.size=colSums(countsTableC_sub)*dC$samples$norm.factors)
+title(main="cortex", line=0.5)
+
+# fitting
+# fit the linear models (one model per gene)
+fitL <- lmFit(resL, designL)
+fitC <- lmFit(resC, designC)
+# calculate the t-statistics using empirical Bayes moderation to determine if each gene is differentially expressed.
+fitL2 <- eBayes(fitL)
+fitC2 <- eBayes(fitC)
+
+# retrieve stats for each gene from the fitted models. The maximum number of genes is set higher than the number of genes tested so that all genes are taken. P-values are adjusted by FDR method, and sorted by log-odds (B)
+resultTableL <- topTable(fitL2, coef="condsLSD", adjust.method="fdr", sort.by="B", number=1000000)
+resultTableC <- topTable(fitC2, coef="condsCSD", adjust.method="fdr", sort.by="B", number=1000000)
+
+# store information about DE analysis
+write.table(resultTableL, file="RNA_SD_vs_NSD_DiffExp_Limma_Liver.txt", row.names=TRUE, sep="\t", quote=FALSE)
+write.table(resultTableC, file="RNA_SD_vs_NSD_DiffExp_Limma_Cortex.txt", row.names=TRUE, sep="\t", quote=FALSE)
+```
+
+
+### MDS
+
+Multidimensional scaling (MDS) analysis. Labels are colored according to their mouse line.
+
+```{r MDS_on_res, fig.height=10, fig.width=10}
+
+# change the palette used to have color of labels that are readable
+palette(c("black", "skyblue", "green4", "orange2", "darkred", "darkviolet", "darkblue", "darkolivegreen2", "chocolate4","plum1"))
+
+# plot the MDS results
+plotMDS(resL, main="MDS in liver", top=500, labels=keySampleL$sampleTreatment, col=as.numeric(keySampleL$strain), gene.selection="common")
+plotMDS(resC, main="MDS in cortex", top=500, labels=keySampleC$sampleTreatment, col=as.numeric(keySampleC$strain), gene.selection="common")
+```
+
+PC1 axis seems to separate B6 mice, D2 mice on the other side and all RI lines in the middle. Between liver and cortex the B6 and D2 mice are switched according to PC1.
+In liver, PC1 group by mouse lines and PC2 seem to differenciate NSD and SD for each line.
+In cortex, PC2 separate 2 clusters that are conditions (SD or NSD).
+

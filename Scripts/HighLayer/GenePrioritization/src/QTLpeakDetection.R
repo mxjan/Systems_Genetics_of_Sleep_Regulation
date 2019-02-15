@@ -1,0 +1,300 @@
+
+
+# In the old version, the start and end point of a QTL begin at the suggestive threshold and expand
+# In the new version, it start just after the peak, then expand and controling for a minimal interval
+
+# Edit idxStart and idxEnd for old/new version switch
+
+
+# QTL peak detection for BXD
+QTLPeakDetection<-function(QTLscan,LODInterval,SuggThresh,SignifThresh,scanMB){
+  
+  # Matrix for our final results
+  Results<-matrix(nrow=0,ncol=9)
+  
+  # This is our minimal cM difference between 2 QTL on the same chromosome
+  MINSEP<-5
+
+  # The distance to control for a continuous 1.5 LOD difference (pass through really close peak)
+  DiffDist<-1.5	
+  
+  # Separate analysis per chromosome
+  ResultPerChr<-matrix(ncol=3,nrow=length(QTLscan$pos))
+  ResultPerChr[,1]<-QTLscan$chr
+  ResultPerChr[,2]<-QTLscan$pos
+  ResultPerChr[,3]<-QTLscan$lod
+  rownames(ResultPerChr)<-rownames(QTLscan)
+  
+  # Per chr, estimate QTL peak and interval
+  for (chr in levels(as.factor(ResultPerChr[,1]))){
+    
+    # Get position for position above suggestive threshold
+    pos<-ResultPerChr[,2][ResultPerChr[,3]>=SuggThresh & ResultPerChr[,1]==chr]
+    
+    # We separate region beyond MINSEP cM distance (Usefull if multiple QTL are detected on a single chromosome)
+    breaks <- cumsum(c(0, diff(pos) > MINSEP))
+    
+    # List of QTLs on the chromosome
+    spl<-split(pos, breaks)
+    
+    # We process each QTL for a 1.5 LOD interval
+    if (length(spl[[1]])>0){
+      for(i in spl){
+        minpos <- min(i)-0.01
+        maxpos <- max(i)+0.01
+        # Position of the peak, Start and End position
+        Filter<-ResultPerChr[,1]==chr & ResultPerChr[,2]>minpos & ResultPerChr[,2]<maxpos
+        l<-ResultPerChr[,3][Filter] # LOD value
+        lp<-ResultPerChr[,2][Filter] # position value
+        # Peak is the maximum LOD value
+        idxPeak<-which(rownames(ResultPerChr) == names(l)[which(l==max(l))[1]])
+        # Start and end are max and min position
+        #idxEnd<-which(rownames(ResultPerChr) == names(lp)[which(lp==max(lp))[1]])
+        #idxStart<-which(rownames(ResultPerChr) == names(lp)[which(lp==min(lp))[1]])
+	idxEnd<-idxPeak+1
+	idxStart<-idxPeak-1
+        
+        # LOD value on the peak (for first result if multiple)
+        peakLod<-ResultPerChr[idxPeak,3] 
+        if(length(peakLod)>1){
+          peakLod<-peakLod[1]
+        }
+        
+        # Now we control if our Start and End bound are in a 1.5 LOD interval
+        # Default = "No"
+        LodEnd<-"No"
+        LodStart<-"No"
+        
+        # We expand our QTL region while the 1.5 LOD interval is not satisfied
+        while(LodEnd=="No" | LodStart=="No"){
+          if(LodEnd == "No"){
+            # Are we at the end of the data of beyond interval ?
+            if((idxEnd == nrow(ResultPerChr))| ((ResultPerChr[idxEnd,3]) <= (peakLod-LODInterval))){
+              # Control if QTL interval reach end Chromosome
+              if (chr != ResultPerChr[idxEnd,1]){
+                ReachEnd<-TRUE
+                LodEnd<-tail(ResultPerChr[,2][ResultPerChr[,1]==chr],1)
+              } else {
+                ReachEnd<-FALSE
+
+                # We extend our reasearch until DiffDist to control for a continuous 1.5 LOD difference
+		CloseLodEnd <- ResultPerChr[idxEnd,2]
+		ContinuousControlClose<-F
+		idxEnd<-idxEnd+1
+		
+		while (ContinuousControlClose == F){
+		     if (chr != ResultPerChr[idxEnd,1]){
+			ReachEnd<-TRUE
+			LodEnd<-tail(ResultPerChr[,2][ResultPerChr[,1]==chr],1)
+			ContinuousControlClose<-T
+		     }
+		     else {
+			# if the region become greater than LODdiff and still in our interval control -> continue to extend
+			# Otherwise it is over
+			if ( (ResultPerChr[idxEnd,3]) <= (peakLod-LODInterval) & (ResultPerChr[idxEnd,2]-CloseLodEnd) > DiffDist){
+				ContinuousControlClose<-T
+				LodEnd<-CloseLodEnd
+			# We are still in our interval control
+			} else if ( (ResultPerChr[idxEnd,3]) <= (peakLod-LODInterval) & (ResultPerChr[idxEnd,2]-CloseLodEnd) <= DiffDist ){
+				idxEnd <- idxEnd + 1
+				
+			} else if ( (ResultPerChr[idxEnd,3]) > (peakLod-LODInterval) ){
+				ContinuousControlClose <- T
+				idxEnd <- idxEnd + 1	
+			}
+		     }
+             	 }
+	      }
+
+            }else{
+              # Go to next position	
+              idxEnd<-idxEnd+1 
+            }
+          }
+          # Same for start of the QTL
+          if(LodStart=="No"){
+	    
+            if((idxStart == 1) | ((ResultPerChr[idxStart,3]) <= (peakLod-LODInterval))){
+              if (chr != ResultPerChr[idxStart,1]){
+                ReachStart<-TRUE
+                LodStart<-head(ResultPerChr[,2][ResultPerChr[,1]==chr],1)
+              } else {
+                ReachStart<-FALSE
+
+               # We extend our reasearch until DiffDist to control for a continuous 1.5 LOD difference
+		CloseLodStart <- ResultPerChr[idxStart,2]
+		
+		ContinuousControlClose<-F
+		#idxStart<-idxStart-1
+		while (ContinuousControlClose == F){
+		     if (chr != ResultPerChr[idxStart,1]){
+			ReachStart<-TRUE
+			LodStart<-head(ResultPerChr[,2][ResultPerChr[,1]==chr],1)
+			ContinuousControlClose<-T
+		     }
+		     else {
+			# if the region become greater than LODdiff and still in our interval control -> continue to extend
+			# Otherwise it is over
+			if ( (ResultPerChr[idxStart,3]) <= (peakLod-LODInterval) & (CloseLodStart-ResultPerChr[idxStart,2]) > DiffDist){
+				ContinuousControlClose<-T
+				LodStart<-CloseLodStart
+				 
+			# We are still in our interval control
+			} else if ( (ResultPerChr[idxStart,3]) <= (peakLod-LODInterval) & (CloseLodStart-ResultPerChr[idxStart,2]) <= DiffDist ){
+				idxStart<-idxStart-1
+				
+			} else if ( (ResultPerChr[idxStart,3]) > (peakLod-LODInterval) ){
+				ContinuousControlClose<-T
+				idxStart <- idxStart-1
+				
+			}
+		     }
+              	}
+	      }
+            }else{
+              idxStart<-idxStart-1
+            }
+          }
+        }
+
+        QTLInfo<-c()
+        QTLInfo<-c(QTLInfo,names(LodStart))
+        QTLInfo<-c(QTLInfo,LodStart)
+        QTLInfo<-c(QTLInfo,names(LodEnd))
+        QTLInfo<-c(QTLInfo,LodEnd)
+        QTLInfo<-c(QTLInfo,chr)
+        QTLInfo<-c(QTLInfo,peakLod)
+        if(peakLod>=SignifThresh){
+          QTLInfo<-c(QTLInfo,'Signif')
+        }else if(peakLod>=SuggThresh){
+          QTLInfo<-c(QTLInfo,'Sugg')
+        }
+        
+        if (ReachStart == FALSE){
+          # Estimate Mb position for pseudo marker
+          if(any(grep("^c.+\\.loc-*[0-9]+(\\.[0-9]+)*$", names(LodStart)))){
+            QTLInfo<-c(QTLInfo,estimateMBLocation(names(LodStart),QTLscan,scanMB))
+          }else{
+            QTLInfo<-c(QTLInfo,scanMB[names(LodStart),2])
+          }
+        }else{
+          QTLInfo<-c(QTLInfo,0.000001)
+        }
+        
+        if (ReachEnd == FALSE){
+          if (any(grep("^c.+\\.loc-*[0-9]+(\\.[0-9]+)*$", names(LodEnd)))){
+            QTLInfo<-c(QTLInfo,estimateMBLocation(names(LodEnd),QTLscan,scanMB))
+          }else{
+            QTLInfo<-c(QTLInfo,scanMB[names(LodEnd),2])
+          }
+        }else{
+          QTLInfo<-c(QTLInfo,350)
+        }
+        Results<-rbind(Results,QTLInfo)
+        
+      }
+    }  
+  }
+  
+  ResultsMerged<-matrix(nrow=0,ncol=9)
+  
+  for (chr in unique(Results[,5])){
+    if (table(Results[,5])[chr]==1){
+      ResultsMerged<-rbind(ResultsMerged,Results[which(Results[,5]==chr),])
+      
+    } else {
+      
+      QTL<-which(Results[,5]==chr)
+      
+      subsets<-list()
+      intervals<-list()
+      
+      # append first interval to subset
+      subsets[[1]]<-c(QTL[[1]])
+      start<-as.numeric(Results[QTL[[1]],2])
+      end<-as.numeric(Results[QTL[[1]],4])
+      intervals[[1]]<-c(start,end)
+      
+      # remover first element
+      QTL<-QTL[-1]
+      
+      for (i in QTL){
+        IsQTLMerged<-FALSE
+        start<-as.numeric(Results[i,2])
+        end<-as.numeric(Results[i,4]) 
+        for (j in 1:length(subsets)){
+          substart<-intervals[[j]][1]
+          subend<-intervals[[j]][2]
+          print(paste(start,substart,end,subend))
+          if ((start>=substart & start<subend) | (end<=subend & end>substart)){
+            IsQTLMerged<-TRUE
+            subsets[[j]]<-c(subsets[[j]],i)
+            QTL<-QTL[-which(QTL==i)]
+            intervals[[j]][1]<-min(start,substart)
+            intervals[[j]][2]<-max(end,subend)
+            break
+          }
+        }
+        if (IsQTLMerged==FALSE){
+          QTL<-QTL[-which(QTL==i)]
+          subsets[[length(subsets)+1]]<-c(i)
+          intervals[[length(intervals)+1]]<-c(start,end)
+        }
+      }
+      
+      # write subsets
+      for (i in subsets){
+        ResultsMerged<-rbind(ResultsMerged,MergeResults(Results,i))
+      }
+    }
+  }
+  
+  
+  colnames(ResultsMerged)<-c("MarkerStart","cMStart","MarkerEnd","cMEnd","Chr","LODpeak","Signif_Sugg","MbStart","MbEnd")
+  return(ResultsMerged)
+  
+}
+
+
+MergeResults<-function(res,subsetids){
+  Datafused<-c()
+  
+  # Start
+  idxstart<-which(as.numeric(res[subsetids,2])==min(as.numeric(res[subsetids,2])))[1]
+  idxend<-which(as.numeric(res[subsetids,4])==max(as.numeric(res[subsetids,4])))[1]
+  idxpeak<-which(as.numeric(res[subsetids,6])==max(as.numeric(res[subsetids,6])))[1]
+  
+  Datafused<-c(Datafused,res[subsetids,1][idxstart]) # marker start
+  Datafused<-c(Datafused,res[subsetids,2][idxstart]) # cM start
+  Datafused<-c(Datafused,res[subsetids,3][idxend]) # marker end
+  Datafused<-c(Datafused,res[subsetids,4][idxend]) # cM end
+  Datafused<-c(Datafused,res[subsetids,5][1]) # chr
+  Datafused<-c(Datafused,res[subsetids,6][idxpeak]) # peak
+  Datafused<-c(Datafused,res[subsetids,7][idxpeak]) # significance
+  Datafused<-c(Datafused,res[subsetids,8][idxstart]) # marker start
+  Datafused<-c(Datafused,res[subsetids,9][idxend]) # marker end
+  
+  return(Datafused)
+}
+
+
+estimateMBLocation<-function(name,QTL.scan,scanMB){
+  idxQTLscan<-which(rownames(QTL.scan)==name)
+  before<-idxQTLscan-1
+  after<-idxQTLscan+1
+  MarkerBefore<-0
+  MarkerAfter<-0
+  while(MarkerBefore==0 | MarkerAfter==0){
+    if(any(grep("^c.+\\.loc-*[0-9]+(\\.[0-9]+)*$",rownames(QTL.scan)[before]))){
+      before<-before-1
+    }else{MarkerBefore<-rownames(QTL.scan)[before]}
+    if(any(grep("^c.+\\.loc-*[0-9]+(\\.[0-9]+)*$",rownames(QTL.scan)[after]))){
+      after<-after+1
+    }else{MarkerAfter<-rownames(QTL.scan)[after]}
+  }
+  r<-as.numeric(QTL.scan[MarkerAfter,2])-as.numeric(QTL.scan[MarkerBefore,2])
+  d<-as.numeric(QTL.scan[name,2])-as.numeric(QTL.scan[MarkerBefore,2])
+  pct<-d/r
+  r<-as.numeric(scanMB[MarkerAfter,2])-as.numeric(scanMB[MarkerBefore,2]) 
+  return(as.numeric(scanMB[MarkerBefore,2])+(r*pct))
+}
