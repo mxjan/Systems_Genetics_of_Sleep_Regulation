@@ -16,8 +16,7 @@ associated [website](https://bxd.vital-it.ch/#/)
 
 # Branches
 
-- Master
-- Reproduced
+- Master (mm9)
 - MM10
 
 # License
