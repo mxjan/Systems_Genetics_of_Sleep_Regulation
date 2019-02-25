@@ -1,0 +1,294 @@
+---
+title: "Heritability"
+output:
+  pdf_document:
+    toc: no
+  html_document:
+    code_folding: hide
+    df_print: paged
+    rows.print: 6
+    theme: sandstone
+    toc: yes
+    toc_float: yes
+---
+
+```{r,echo=T,warning=F,error=F,message=F}
+PATH<-"../../"
+setwd(paste(PATH,"Analysis/BXD_Paper_Figures",sep=""))
+library(ggplot2)
+```
+
+# Heritability informations:
+
+* The percent variance accounted for by strain is considered by some to be an estimate of broad-sense heritability (Hirsch 1967; Lynch & Walsh 1998) for clones, and is formulated as the strain intra-class correlation: [http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2855868/]
+
+* Broad-sense (H2) and narrow-sense (h2) H2 = Va/Vt; h2 = 1/2Va/(1/2Va + Vw) was estimated using the Hegmann and Possidente Method (1981)http://journal.frontiersin.org/article/10.3389/fnbeh.2014.00341/full, http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4204525/ 
+
+# Heritability function
+
+The function return a matrix with: 
+
+* FileName
+
+* Phenotypes Name 
+
+* Narrow-sense heritability 
+
+* Broad-sense heritability
+
+* FileName + Phenotype Name
+
+```{r}
+# Heritability for Sleep phenotypes
+Heritability<-function(File){
+  m<-matrix(ncol=5,nrow=0)
+  
+  # Remove parental lines and F1, take only BXD mice
+  x<-read.table(File,header=T)
+  
+  #x<-x[-which(as.character(x$line) %in% c("C57BL6","DBA2","BXDF1","DXBF1")),]
+  x<-x[-which(as.character(x$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063","BXD029TLR4")),]
+
+  #if (length(unique(x$line))>33){print(unique(x$line))}
+  
+  # change file name
+  File<-strsplit(File,"/")
+  File<-File[[1]][length(File[[1]])]
+  
+  for (i in seq(8,ncol(x))){
+    a<-aov(as.numeric(as.character(x[,i])) ~ x$line)
+    Va<-summary(a)[[1]][1,3]  #is the variance between strains (Mean square for lines effect)
+    Vw<-summary(a)[[1]][2,3] #is the variance within strains. (Mean square for residuals)
+    Vt<-Va+Vw # Total mean variance
+    
+    # Broad-sense heritability
+    H2<-Va/Vt
+    # Narrow-sense heritability
+    h2<-0.5*Va/(0.5*Va+Vw)
+    
+    m<-rbind(m,c(File,colnames(x)[i],h2,H2,paste(File,colnames(x)[i],sep='.')))
+  }
+  return(m)
+}
+
+# Heritability for metabolites
+HeritabilityM<-function(File){
+  m<-matrix(ncol=5,nrow=0)
+  x<-read.table(File,header=T,sep="\t",stringsAsFactors = F)
+  
+  # NSD
+  ## Remove NA
+  x[x==(-1)]<-NA
+  
+  ## filter data
+  n<-x[1,]
+  x<-x[-1,]
+  
+  #x<-x[-which(as.character(x$Group) %in% c("C57BL6","DBA","D2B6F1","B6D2F1")),]
+  x<-x[-which(as.character(x$Group) %in% c("BXD05","BXD29","BXD29TLR4","BXD32","BXD63")),]
+
+  
+  #print(length(unique(x$Group)))
+  
+  xNSD<-x[x$Condition=="NSD",]
+  
+  for (i in seq(6,ncol(xNSD))){
+    a<-aov(as.numeric(as.character(xNSD[,i])) ~ xNSD$Group)
+
+    Va<-summary(a)[[1]][1,3] #is the variance between strains (Mean square for lines effect)
+    Vw<-summary(a)[[1]][2,3] #is the variance within strains. (Mean square for residuals)
+    Vt<-Va+Vw
+    
+    H2<-Va/Vt
+    h2<-0.5*Va/(0.5*Va+Vw)
+
+    m<-rbind(m,c("NSD",colnames(xNSD)[i],h2,H2,as.character(n[i][[1]])))
+  }
+  
+  # SD
+  xSD<-x[x$Condition=="SD",]
+  for (i in seq(6,ncol(xSD))){
+    a<-aov(as.numeric(as.character(xSD[,i])) ~ xSD$Group)
+    
+    Va<-summary(a)[[1]][1,3] #is the variance between strains (Mean square for lines effect)
+    Vw<-summary(a)[[1]][2,3] #is the variance within strains. (Mean square for residuals)
+    Vt<-Va+Vw
+    
+    H2<-Va/Vt
+    h2<-0.5*Va/(0.5*Va+Vw)
+
+    m<-rbind(m,c("SD",colnames(xSD)[i],h2,H2,as.character(n[i][[1]])))
+  }
+  
+  # Rec vs Bsl
+  for (i in seq(6,ncol(xSD))){
+    
+    # Mean NSD
+    xmNSDtmp<-aggregate(as.numeric(as.character(xNSD[,i])),list(xNSD$Group),mean,na.rm=T)
+    xmNSD<-xmNSDtmp$x
+    names(xmNSD)<-xmNSDtmp$Group.1
+    
+    xSDtmp<-log2(as.numeric(as.character(xSD[,i]))/xmNSD[as.character(xSD$Group)])
+    #xSDtmp<-as.numeric(as.character(xSD[,i]))-xmNSD[as.character(xSD$Group)]
+    #xSDtmp<-as.numeric(as.character(xSD[,i]))/xmNSD[as.character(xSD$Group)]
+    a<-aov(xSDtmp ~ xSD$Group)
+    
+    Va<-summary(a)[[1]][1,3] #is the variance between strains (Mean square for lines effect)
+    Vw<-summary(a)[[1]][2,3] #is the variance within strains. (Mean square for residuals)
+    Vt<-Va+Vw
+    
+    H2<-Va/Vt
+    h2<-0.5*Va/(0.5*Va+Vw)
+    
+    m<-rbind(m,c("RECvsBSL",colnames(x)[i],h2,H2,as.character(n[i][[1]])))
+  }
+  
+  return(m)
+}
+```
+
+
+# Computation
+
+Get Heritability for EEG/Behavioral phentoypes
+
+```{r}
+# Heritability Matrix
+aH <- matrix(nrow=0,ncol=5)
+
+# Compute heritability for all phenotypes files
+for (File in list.files(paste(PATH,"Rdata/Phenotypes/",sep=""),pattern='*quant.out*')){
+  aH<-rbind(aH,Heritability(paste(PATH,"Rdata/Phenotypes/",File,sep="")))
+}
+
+# Read phenotype Categories files & rename a few phenotypes
+categories<-read.table(paste(PATH,"Rdata/Phenotype.Categories.txt",sep=""),header=T,sep="\t")
+categories$filename.variablename<-gsub("BXDvs1224bsl.","BXDvs1224bsl.out.",categories$filename.variablename)
+categories$filename.variablename<-gsub(".out.",".quant.out.",categories$filename.variablename)
+categories$filename.variablename<-gsub("BXD_TPF.P","BXD_TPF-P",categories$filename.variablename)
+categories$filename.variablename<-gsub("n6hloss","n6hLoss",categories$filename.variablename)
+categories$filename.variablename<-gsub("n6hloss","n6hLoss",categories$filename.variablename)
+categories$filename.variablename<-gsub("n24hgain","n24hGain",categories$filename.variablename)
+categories$filename.variablename<-gsub("r6hloss","r6hLoss",categories$filename.variablename)
+categories$filename.variablename<-gsub("r24hgain","r24hGain",categories$filename.variablename)
+
+# Transform into dataframe
+h2df<-as.data.frame(aH)
+h2df$V3<-as.numeric(as.character(h2df$V3))
+
+# Add categories
+h2df<-h2df[h2df$V5 %in% categories$filename.variablename,]
+rownames(categories)<-categories$filename.variablename
+m<-matrix(nrow=0,ncol=3)
+for (i in h2df$V5){
+  m<-rbind(m,(categories[categories$filename.variablename == i,c(2,3,4)]))
+}
+h2df<-cbind(h2df,m)
+colnames(h2df)<-c("File","Phenotype","h2","H2","FilePhenotype","Condition","Categories","Subcategories")
+```
+
+Get Heritability for metabolites
+
+```{r}
+# Get heritability
+mH<-HeritabilityM(paste(PATH,"Rdata/Metabolites_BXD_alldata.txt",sep=""))
+mH<-as.data.frame(mH)
+mH2<-mH[mH$V1=="NSD",]
+
+h2df<-as.matrix(h2df)
+
+# Metabolite NSD
+for (i in 1:nrow(mH2)){
+  h2df<-rbind(h2df,c(as.character(mH2[i,2]),
+                 as.character(mH2[i,2]),
+                 as.character(mH2[i,3]),
+                 as.character(mH2[i,4]),
+                 as.character(mH2[i,2]),
+                 "bsl",
+                 "ZMetabolite",
+                 as.character(mH2[i,5])
+                 ))
+}
+
+# Metabolite SD
+mH2<-mH[mH$V1=="SD",]
+for (i in 1:nrow(mH2)){
+  h2df<-rbind(h2df,c(as.character(mH2[i,2]),
+                 as.character(mH2[i,2]),
+                 as.character(mH2[i,3]),
+                 as.character(mH2[i,4]),
+                 as.character(mH2[i,2]),
+                 "rec",
+                 "ZMetabolite",
+                 as.character(mH2[i,5])
+                 ))
+}
+
+# Metabolite rec vs bsl
+mH2<-mH[mH$V1=="RECvsBSL",]
+for (i in 1:nrow(mH2)){
+  h2df<-rbind(h2df,c(as.character(mH2[i,2]),
+                 as.character(mH2[i,2]),
+                 as.character(mH2[i,3]),
+                 as.character(mH2[i,4]),
+                 as.character(mH2[i,2]),
+                 "rec vs bsl",
+                 "ZMetabolite",
+                 as.character(mH2[i,5])
+                 ))
+}
+
+
+h2df<-as.data.frame(h2df)
+h2df$h2<-as.numeric(as.character(h2df$h2))
+head(h2df)
+```
+
+
+```{r}
+write.table(file="h2values.txt",h2df,sep="\t",col.names = T,row.names = T,quote = F)
+```
+
+
+# Plot results
+
+```{r,fig.height=10,fig.width=15}
+h2df$UniqueCatSubCat<-paste(h2df$Categories,h2df$Subcategories,sep="_")
+
+theme_set(theme_gray(base_size = 25))
+ggplot(data=h2df,aes(UniqueCatSubCat,h2))+geom_violin(aes(fill=Categories))+geom_jitter(aes(color=Condition),size=3.5,alpha=0.5,height = NULL,width=.15)+
+xlab("")+ylab("heritability")+ylim(0.2,1)+
+scale_colour_brewer(palette="Set1",breaks=c("bsl","rec","rec vs bsl","SD"),
+                    labels=c("Baseline","Recovery","Recovery vs Baseline","Sleep Deprivation"),
+                    name="Condition")+
+scale_fill_brewer(palette = "Pastel1",name="Type",breaks=c("activity","EEG","state","ZMetabolite"),labels=c("Activity","EEG","State","Metabolite"))+
+theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+scale_x_discrete(labels=c("Amount","Distribution","Frequency",
+                          "Paroxismal","Power","Amount","Architecture",
+                          "Distribution","ACT","AA",
+                          "BA","GPL","SM"))
+```
+
+
+```{r}
+pdf(file="Heritability.pdf",height = 10,width = 15)
+theme_set(theme_gray(base_size = 25))
+ggplot(data=h2df,aes(UniqueCatSubCat,h2))+geom_violin(aes(fill=Categories))+geom_jitter(aes(color=Condition),size=3.5,alpha=0.5,height = NULL,width=.15)+
+xlab("")+ylab("heritability")+ylim(0.2,1)+
+scale_colour_brewer(palette="Set1",breaks=c("bsl","rec","rec vs bsl","SD"),
+                    labels=c("Baseline","Recovery","Recovery vs Baseline","Sleep Deprivation"),
+                    name="Condition")+
+scale_fill_brewer(palette = "Pastel1",name="Type",breaks=c("activity","EEG","state","ZMetabolite"),labels=c("Activity","EEG","State","Metabolite"))+
+theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+scale_x_discrete(labels=c("Amount","Distribution","Frequency",
+                          "Paroxismal","Power","Amount","Architecture",
+                          "Distribution","ACT","AA",
+                          "BA","GPL","SM"))
+dev.off()
+```
+
+# Session information for this run
+
+```{r}
+sessionInfo()
+```

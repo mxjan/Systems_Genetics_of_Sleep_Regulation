@@ -1,0 +1,89 @@
+---
+title: "QTL_Plot"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+
+```{r}
+library(grid)
+grid.newpage();
+unloadNamespace("ggbio")
+library(GenomicRanges)
+library(ggbio)
+```
+
+Plot
+
+```{r,fig.height=10,fig.width=10,warning=F,error=F}
+
+data(ideoCyto, package = "biovizBase")
+dn<-ideoCyto$mm9
+
+x<-read.table("../BXD_Paper_Public/Data/SuggQTL_ggbio.table",header=F)
+gr <- GRanges(seqnames =x$V1,
+              IRanges(
+                start = x$V2,
+                width = x$V3 ),
+              Power=x$V4,Pheno=x$V5)
+
+
+x<-read.table("../BXD_Paper_Public/Data/Sugg_mQTL_NSD_ggbio.table",header=F)
+gr2 <- GRanges(seqnames =x$V1,
+              IRanges(
+                start = x$V2,
+                width = x$V3 ),
+              Power=x$V4,Pheno=x$V5)
+gr2$VarT<-"Metabolite"
+
+x<-read.table("../BXD_Paper_Public/Data/Sugg_mQTL_SD_ggbio.table",header=F)
+gr3 <- GRanges(seqnames =x$V1,
+              IRanges(
+                start = x$V2,
+                width = x$V3 ),
+              Power=x$V4,Pheno=x$V5)
+gr3$VarT<-"Metabolite"
+
+
+categories<-read.table("../Rdata/Phenotype.Categories.txt",header=T,sep="\t")
+categories$filename.variablename<-gsub("BXDvs1224bsl.","BXDvs1224bsl.out.",categories$filename.variablename)
+categories$filename.variablename<-gsub(".out.",".quant.out.",categories$filename.variablename)
+categories$filename.variablename<-gsub("BXD_NR-ratio","BXD_NR.ratio",categories$filename.variablename)
+#categories$filename.variablename<-gsub("BXDvs1224bsl.","BXDvs1224bsl.quant.out.",categories$filename.variablename)
+categories$filename.variablename<-gsub("hgain","hGain",categories$filename.variablename)
+categories$filename.variablename<-gsub("hloss","hLoss",categories$filename.variablename)
+#categories$filename.variablename<-gsub("BXDvs1224bsl.","BXDvs1224bsl.out.",categories$filename.variablename)
+rownames(categories)<-categories$filename.variablename
+
+gr$VarT<-categories[as.character(gr$Pheno),]$variable.type
+gr$Cond<-categories[as.character(gr$Pheno),]$condition
+gr$Sub<-categories[as.character(gr$Pheno),]$subtype
+
+
+theme_set(theme_gray(base_size = 25))
+p<-autoplot(seqinfo(dn),layout = "karyogram")+
+  layout_karyogram(data = gr[gr$Power>=0.90 & gr$VarT == 'activity',], geom = "rect", ylim = c(0, 2),aes(fill = VarT,color=rgb(0,0,0,alpha=0),alpha=1))+
+  layout_karyogram(data = gr[gr$Power>=0.90 & gr$VarT == 'EEG',], geom = "rect", ylim = c(2.5, 5),aes(fill = VarT,color=rgb(0,0,0,alpha=0),alpha=1))+
+  layout_karyogram(data = gr[gr$Power>=0.90 & gr$VarT == 'state',], geom = "rect", ylim = c(5, 7.5),aes(fill = VarT,color=rgb(0,0,0,alpha=0),alpha=1))+
+  layout_karyogram(data = gr2[gr2$Power>=0.90 & gr2$VarT == 'Metabolite',], geom = "rect", ylim = c(7.5, 10),aes(fill = VarT,color=rgb(0,0,0,alpha=0),alpha=1))+
+  layout_karyogram(data = gr3[gr3$Power>=0.90 & gr3$VarT == 'Metabolite',], geom = "rect", ylim = c(7.5, 10),aes(fill = VarT,color=rgb(0,0,0,alpha=0),alpha=1))+
+  scale_fill_manual(values=c("activity"="#E41A1C","EEG"="#377EB8","state"="#4DAF4A","Metabolite"="#984EA3"),name="Type",labels=c("Activity","EEG","State","Metabolite"),breaks=c("activity","EEG","state","Metabolite"))
+  #scale_fill_brewer(palette = "Pastel1",name="Type",breaks=c("activity","EEG","state","Metabolite"),labels=c("Activity","EEG","State","Metabolite"))
+p<-p+scale_color_manual(values=c("black"="black","bsl"="red","rec"="blue","rec vs bsl"="green","SD"="purple"),name="")
+p
+
+pdf(file="QTL_plot.pdf",height = 10,width = 8)
+p
+dev.off()
+```
+
+
+
+
+

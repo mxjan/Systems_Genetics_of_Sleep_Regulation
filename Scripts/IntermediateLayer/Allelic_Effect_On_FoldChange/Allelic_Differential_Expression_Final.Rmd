@@ -1,0 +1,206 @@
+---
+title: "Allelic differential Expression Final"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+load packages
+
+```{r,echo=T,warning=F,error=F,message=F}
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("DESeq")
+#install.packages("reshape")
+library(limma)
+library(edgeR)
+library(DESeq)
+library(reshape)
+```
+
+read file and filter low expressed gene
+
+```{r}
+counts_Cortex<-read.delim("RawCounts.Cortex.txt", header=TRUE, stringsAsFactors=TRUE, sep="\t")
+counts_Liver<-read.delim("RawCounts.Liver.txt", header=TRUE, stringsAsFactors=TRUE, sep="\t")
+counts_Liver<-counts_Liver[-which(counts_Liver$ID=="a"),]
+
+rownames(counts_Liver) <- counts_Liver$ID
+rownames(counts_Cortex) <- counts_Cortex$ID
+counts_Liver <- counts_Liver[,2:ncol(counts_Liver)] # remove ID col
+counts_Cortex <- counts_Cortex[,2:ncol(counts_Cortex)] # remove ID col
+
+idxC<-rowMeans(counts_Cortex)>10
+Filtcounts_Cortex<-counts_Cortex[idxC,]
+idxL<-rowMeans(counts_Liver)>10
+Filtcounts_Liver<-counts_Liver[idxL,]
+```
+
+Set the strains [BXD lines] and condition [SD vs NSD]
+
+```{r}
+conds <- rep(c("NSD","SD"),ncol(counts_Cortex)/2)
+strains<-colnames(counts_Cortex)
+strains[79]<-"B61nsd"
+strains[80]<-"B61sd"
+strains[85]<-"DB1nsd"
+strains[86]<-"DB1sd"
+strains<-gsub("X",'',strains)
+strains<-gsub("L",'',strains)
+strains<-gsub("nsd",'',strains)
+strains<-gsub("sd",'',strains)
+```
+
+Normalization with TMM
+
+```{r}
+dC <- DGEList(counts=Filtcounts_Cortex)
+dC <- calcNormFactors(dC, method="TMM")
+normcounts_Cortex <- data.frame(cpm(dC, normalized.lib.sizes=TRUE))
+
+dL <- DGEList(counts=Filtcounts_Liver)
+dL <- calcNormFactors(dL, method="TMM")
+normcounts_Liver <- data.frame(cpm(dL, normalized.lib.sizes=TRUE))
+```
+
+Read cis-eQTL analysis using fold-change (see. /home/mjan/PhD/Analysis/cis-eQTL_Detection/cis_FC_eQTL_Analysis.Rmd)
+
+```{r}
+eQTL_FC_Cortex<-read.table("../../Rdata/ciseQTL.Cortex.FC.pvalcorrected.txt",header=T)
+eQTL_FC_Liver<-read.table("../../Rdata/ciseQTL.Liver.FC.pvalcorrected.txt",header=T)
+
+markers<-read.table("Genotype.FormatedName.geno",header=T)
+colnames(markers)<-gsub("BXD0","",colnames(markers))
+colnames(markers)<-gsub("BXD","",colnames(markers))
+
+markers<-markers[,-c(5,6,7,19,42,43)] # remove old, F1 and BXD63 and parental
+```
+
+Get significant modulated differential expression between markers in...
+
+Liver
+
+```{r}
+strains2<-strains[strains %in% colnames(markers)]
+conds2<-conds[strains %in% colnames(markers)]
+Filtcounts_Liver<-Filtcounts_Liver[,strains %in% colnames(markers)]
+normcounts_Liver<-normcounts_Liver[,strains %in% colnames(markers)]
+normFactors_Liver <- calcNormFactors(Filtcounts_Liver)
+
+
+design<-model.matrix(~strains2+conds2)
+resS <- voom(Filtcounts_Liver,design,plot=F,lib.size=colSums(Filtcounts_Liver)*normFactors_Liver)
+
+
+Table_Liver<-matrix(nrow=0,ncol=6)
+
+for (i in rownames(Filtcounts_Liver)){
+  marker<-NULL
+  if (i %in% rownames(eQTL_FC_Liver) & ! is.na(eQTL_FC_Liver[i,"marker"]) & eQTL_FC_Liver[i,"adjustedpvalue"]<0.05){
+    marker<-as.character(eQTL_FC_Liver[i,"marker"])
+  }
+  
+  if (! is.null(marker)){
+    gm<-as.character(as.matrix(markers[markers$Locus==marker,]))
+    names(gm)<-colnames(markers)
+    gm<-gm[-c(1,2,3,4)]
+    
+   
+    gm<-gm[ strains2[conds2=="NSD"]] # order genotypes
+    
+    g<-rep(NA,length(gm)*2)
+    g[conds2=="NSD"]<-gm
+    g[conds2=="SD"]<-gm
+    
+    g<-as.factor(g)
+    g<-relevel(g, ref="B")
+    
+    conds2<-as.factor(conds2)
+    conds2<-relevel(conds2, ref="NSD")
+    
+    design<-model.matrix(~g+conds2+g*conds2)
+    
+    fitS <- lmFit(resS[i,],design)
+    fit2S <- eBayes(fitS)
+    
+    Table_Liver<-rbind(Table_Liver,topTable(fit2S,coef="gD:conds2SD", adjust="fdr", sort.by="B", number=1000000))
+
+  }
+}
+
+Table_Liver$adj.P.Val<-p.adjust(Table_Liver$P.Value,method="fdr")
+
+nrow(Table_Liver[Table_Liver$adj.P.Val<=0.05,])
+Table_Liver[Table_Liver$adj.P.Val<=0.05,]
+
+Table_Liver<-Table_Liver[order(abs(Table_Liver$adj.P.Val),decreasing = F),]
+write.table(Table_Liver,file="Genotype_SD_Interaction_Liver.txt",sep="\t",quote=F)
+```
+
+Cortex
+
+```{r}
+strains2<-strains[strains %in% colnames(markers)]
+conds2<-conds[strains %in% colnames(markers)]
+Filtcounts_Cortex<-Filtcounts_Cortex[,strains %in% colnames(markers)]
+normcounts_Cortex<-normcounts_Cortex[,strains %in% colnames(markers)]
+normFactors_Cortex <- calcNormFactors(Filtcounts_Cortex)
+
+
+design<-model.matrix(~strains2+conds2)
+resS <- voom(Filtcounts_Cortex,design,plot=F,lib.size=colSums(Filtcounts_Cortex)*normFactors_Cortex)
+
+
+Table_Cortex<-matrix(nrow=0,ncol=6)
+
+for (i in rownames(Filtcounts_Cortex)){
+  marker<-NULL
+  if (i %in% rownames(eQTL_FC_Cortex) & ! is.na(eQTL_FC_Cortex[i,"marker"]) & eQTL_FC_Cortex[i,"adjustedpvalue"]<0.05){
+    marker<-as.character(eQTL_FC_Cortex[i,"marker"])
+  }
+  
+  if (! is.null(marker)){
+    gm<-as.character(as.matrix(markers[markers$Locus==marker,]))
+    names(gm)<-colnames(markers)
+    gm<-gm[-c(1,2,3,4)]
+    
+   
+    gm<-gm[ strains2[conds2=="NSD"]] # order genotypes
+    
+    g<-rep(NA,length(gm)*2)
+    g[conds2=="NSD"]<-gm
+    g[conds2=="SD"]<-gm
+    
+    g<-as.factor(g)
+    g<-relevel(g, ref="B")
+    
+    conds2<-as.factor(conds2)
+    conds2<-relevel(conds2, ref="NSD")
+    
+    design<-model.matrix(~g+conds2+g*conds2)
+    
+    fitS <- lmFit(resS[i,],design)
+    fit2S <- eBayes(fitS)
+    
+    Table_Cortex<-rbind(Table_Cortex,topTable(fit2S,coef="gD:conds2SD", adjust="fdr", sort.by="B", number=1000000))
+
+  }
+}
+
+Table_Cortex$adj.P.Val<-p.adjust(Table_Cortex$P.Value,method="fdr")
+
+nrow(Table_Cortex[Table_Cortex$adj.P.Val<=0.05,])
+Table_Cortex[Table_Cortex$adj.P.Val<=0.05,]
+
+Table_Cortex<-Table_Cortex[order(abs(Table_Cortex$adj.P.Val),decreasing = F),]
+write.table(Table_Cortex,file="Genotype_SD_Interaction_Cortex.txt",sep="\t",quote=F)
+```
+
+
+
+
+

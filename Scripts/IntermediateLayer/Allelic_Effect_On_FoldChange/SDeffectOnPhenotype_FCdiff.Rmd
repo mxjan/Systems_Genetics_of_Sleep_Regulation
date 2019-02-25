@@ -1,0 +1,526 @@
+---
+title: "SDeffectOnPhenotype_FCdiff"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+Test for interaction between genotype at QTL peak and sleep deprivation effect.
+
+
+
+
+```{r}
+library(qtl)
+library(lmerTest)
+QTL<-read.cross("csv",file="../../QTL/Sleep_Phenotypes/MeanAllPheno.QTLR",genotypes=c("BB", "BD", "DD","EE","FF"),allele=c("B", "D"),estimate.map=FALSE,na.strings=c("NA","-"))
+QTL<-convert2risib(QTL)
+QTL<-jittermap(QTL,amount=1e-6)
+QTL <- calc.genoprob(QTL, step=1,error.prob=0.05)
+
+fcphQTL<-read.table("../../QTL/Sleep_Phenotypes/QTLlist.txt",header=T)
+```
+
+
+Get marker
+
+```{r}
+markers<-read.table("Genotype.FormatedName.geno",header=T)
+n<-markers$Locus
+
+File1<-"BXDvsRECbaseline.quant.out"
+x<-read.table(paste("Phenotypes/",File1,sep=''),header=T)
+x<-x[-which(x$line %in% c("C57BL6","DBA2","BXDF1","DXBF1","BXD005","BXD029","BXD029TL","BXD032","BXD063")),]
+
+markers<-markers[,colnames(markers) %in% unique(x$line)]
+
+# order marker
+markers<-markers[,order(match(colnames(markers),as.character(unique(x$Group))))]
+
+rownames(markers)<-n
+```
+
+Use linear mixed model to account for dependent variable (before and after SD => same mouse recordings)
+
+
+```{r}
+AddANOVA<-function(Pheno,File1,Pheno1,File2,Pheno2){
+  k<-Pheno
+  i<-which(fcphQTL$Phenotype==k & fcphQTL$Lodscore == max(fcphQTL[fcphQTL$Phenotype==k,"Lodscore"]))
+  id<-fcphQTL[i,"PhenotypeNumber"]
+  QTL.scan<-scanone(QTL,method="em",pheno.col=id)
+  st<-which(rownames(QTL.scan) == fcphQTL[i,"MarkerStart"])
+  ed<-which(rownames(QTL.scan) == fcphQTL[i,"MarkerEnd"])
+  
+  QTLscan_small <- QTL.scan[st:ed,]
+  
+  # Markers at QTL peak
+  markersQTL<-QTLscan_small[QTLscan_small$lod==max(QTLscan_small$lod),]
+  
+  #remove pseudomarker
+  gr<-grep("c.+\\.loc.+",rownames(markersQTL),perl=T)
+  if (length(gr)>0){
+    markersQTL_Nopseudo<-rownames(markersQTL)[-gr]
+  }else{
+    markersQTL_Nopseudo<-rownames(markersQTL)
+  }
+  
+  
+  #QTLscan_small<-QTLscan_small[- grep("c\\d+\\.loc\\d+",markersQTL,perl=T),]
+  
+  # if only pseudo marker available:
+  if (length(markersQTL_Nopseudo) == 0){
+    #estimate most probable genotype
+    marker<-rownames(markersQTL)[1]
+    
+    Chrom<-fcphQTL[i,"QTL_Chromosome"]
+    if (Chrom == '20'){Chrom<-'X'}
+    genoproDD<-pull.genoprob(QTL, chr=Chrom)[,paste(marker,':DD',sep='')]
+    
+    id<-as.character(QTL$pheno$Mouse_ID)
+    gm<-rep("B",length(id))
+    names(gm)<-id
+    gm[genoproDD>0.5]<-'D'
+    
+  # A normal marker is available
+  }else {
+    marker <- markersQTL_Nopseudo[1]
+    gm<-as.character(as.matrix(markers[marker,]))
+    names(gm)<-colnames(markers)
+  }
+  
+  if (nrow(QTLscan_small) > 0){
+      maxid<-which(QTLscan_small[,"lod"]==max(QTLscan_small[,"lod"]))[1]
+      marker<-rownames(QTLscan_small)[maxid]
+      
+      gms<-gm[order(match(names(gm),colnames(SavedMarker)))]
+      SavedMarker<<-rbind(SavedMarker,gms)
+      rownames(SavedMarker)[nrow(SavedMarker)]<<-marker
+  
+      
+      x<-read.table(paste("Phenotypes/",File1,sep=''),header=T)
+      x<-x[-which(x$line %in% c("C57BL6","DBA2","BXDF1","DXBF1","BXD005","BXD029","BXD029TL","BXD032","BXD063")),]
+      ph1<-x[,Pheno1]
+      y<-read.table(paste("Phenotypes/",File2,sep=''),header=T)
+      y<-y[-which(y$line %in% c("C57BL6","DBA2","BXDF1","DXBF1","BXD005","BXD029","BXD029TL","BXD032","BXD063")),]
+      ph2<-y[,Pheno2]
+      
+      data<-c(ph1,ph2)
+      conds<-factor(c(rep("NSD",length(ph1)),rep("SD",length(ph2))))
+      strains<-as.factor(c(as.character(x$line),as.character(y$line)))
+      
+      na<-NULL
+      if (! is.null(na)){
+        data[data==na]<-NA  
+      }
+  
+    
+      geno<-gm[rep(as.character(x$line),2)]
+      
+      geno<-as.factor(geno)
+      geno<-relevel(geno, ref="B")
+      length(geno)
+      
+      mID<-rep(seq(1,length(strains)/2),2)
+      
+      # Test 2
+      # data2<-log2(data[conds=="SD"]/data[conds=="NSD"])
+      # geno2<-geno[conds=="SD"]
+      # 
+      # fit<-lm(data2~geno2)
+      # sfit<-summary(fit)
+      # 
+      # intpval<-sfit$coefficients["geno2D","Pr(>|t|)"]
+      # Bestim<-sfit$coefficients["(Intercept)","Estimate"]
+      # Destim<-Bestim+sfit$coefficients["geno2D","Estimate"]
+      # FCeff<-Bestim-Destim
+      
+      # Original
+      fit<-lmer(data~0+geno*conds+(1|mID))
+      #fit<-lm(data~0+geno*conds)
+
+       sfit<-summary(fit)
+       intpval<-sfit$coefficients["genoD:condsSD","Pr(>|t|)"]
+       Bestim<-sfit$coefficients["genoB","Estimate"]
+       Destim<-sfit$coefficients["genoD","Estimate"]
+       SDestim<-sfit$coefficients["condsSD","Estimate"]
+       DSDestim<-sfit$coefficients["genoD:condsSD","Estimate"]
+      #
+       SD_B<-log2(Bestim+SDestim)-log2(Bestim)
+       SD_D<-log2(Destim+SDestim+DSDestim)-log2(Destim)
+       FCeff<-SD_B-SD_D
+      
+  } else {
+    intpval<-1
+    FCeff<-0
+    marker<-NA
+  }
+  #QTLinfo<-rbind(QTLinfo,fcphQTL[i,])
+  
+  return(list(fcphQTL[i,],intpval,FCeff,marker))
+  
+}
+
+```
+
+
+
+
+```{r}
+intpvals<-c()
+effects<-c()
+topmarkers<-c()
+
+QTLinfo<-matrix(nrow=0,ncol=10)
+SavedMarker<<-matrix(ncol=33,nrow=0)
+colnames(SavedMarker)<-colnames(markers)
+
+
+
+Pheno<-"BXD_NREMSspecSD.quant.out.del1_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"del1_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"del1_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+
+Pheno<-"BXD_NREMSspecSD.quant.out.del2_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"del2_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"del2_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+
+Pheno<-"BXD_NREMSspecSD.quant.out.the_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"the_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"the_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXD_NREMSspecSD.quant.out.bet_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"bet_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"bet_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXD_NREMSspecSD.quant.out.gam1_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"gam1_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"gam1_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXD_NREMSspecSD.quant.out.gam2_rat"
+File1<-"BXD_NREMSspecSD.quant.out"
+Pheno1<-"gam2_b"
+File2<-"BXD_NREMSspecSD.quant.out"
+Pheno2<-"gam2_r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+
+Pheno<-"BXD_NR.ratio.quant.out.rat24br"
+File1<-"BXD_NR-ratio.quant.out"
+Pheno1<-"rat24b"
+File2<-"BXD_NR-ratio.quant.out"
+Pheno2<-"rat18r"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXDvsRECdif.quant.out.n2d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"n2"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"n2"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXDvsRECdif.quant.out.n3d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"n3"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"n3"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXDvsRECdif.quant.out.n4d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"n4"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"n4"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXDvsRECdif.quant.out.n5d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"n5"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"n5"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXDvsRECdif.quant.out.r2d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"r2"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"r2"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXDvsRECdif.quant.out.w2d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"w2"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"w2"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXDvsRECdif.quant.out.w3d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"w3"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"w3"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXDvsRECdif.quant.out.w5d"
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"w5"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"w5"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXD_NR.ratio.quant.out.ratLbr"
+File1<-"BXD_NR-ratio.quant.out"
+Pheno1<-"ratLb"
+File2<-"BXD_NR-ratio.quant.out"
+Pheno2<-"ratLr"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+
+Pheno<-"BXD_NR.ratio.quant.out.ratDbr"
+File1<-"BXD_NR-ratio.quant.out"
+Pheno1<-"ratDb"
+File2<-"BXD_NR-ratio.quant.out"
+Pheno2<-"ratDr"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+Pheno<-"BXD_PS_tpf.quant.out.TPF_L1d"
+File1<-"BXD_PS_tpf.quant.out"
+Pheno1<-"TPF_Lb"
+File2<-"BXD_PS_tpf.quant.out"
+Pheno2<-"TPF_Lr1"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+Pheno<-"BXD_TDWh.quant.out.TDW_Drb."
+File1<-"BXD_TDWh.quant.out"
+Pheno1<-"TDW_Db."
+File2<-"BXD_TDWh.quant.out"
+Pheno2<-"TDW_Dr."
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+
+
+
+Pheno<-"BXD_PS_tpf.quant.out.TPF_L2d"
+File1<-"BXD_PS_tpf.quant.out"
+Pheno1<-"TPF_Lb"
+File2<-"BXD_PS_tpf.quant.out"
+Pheno2<-"TPF_Lr2"
+res<-AddANOVA(Pheno,File1,Pheno1,File2,Pheno2)
+QTLinfo<-rbind(QTLinfo,res[[1]])
+intpvals<-c(intpvals,res[[2]])
+effects<-c(effects,res[[3]])
+topmarkers<-c(topmarkers,res[[4]])
+```
+
+
+
+
+```{r}
+intpvals<-p.adjust(intpvals,method="fdr")
+
+QTLinfo$pvalint<-intpvals
+QTLinfo$intlogFC<-effects
+QTLinfo$topmarker<-topmarkers
+
+QTLinfo
+
+
+write.table(QTLinfo,file="Genotype_SD_Interaction_Phenotypes.txt",sep="\t",quote=F,row.names=F)
+```
+
+
+
+
+```{r,fig.height=15,fig.width=10}
+plotFCPheno<-function(File,Pheno,WithVariant,WithoutVariant,Else,Metabo,main){
+
+  x<-read.table(paste("Phenotypes/",File,sep=''),header=T)
+  #x<-x[-which(x$line %in% c("C57BL6","DBA2","BXDF1","DXBF1","BXD005","BXD029","BXD029TL","BXD032","BXD063")),]
+  FC<-aggregate(x[,Pheno],list(x$line),mean)
+  
+  FCd<-FC[,2,drop=F]
+  rownames(FCd)<-FC[,1]
+  FC<-FCd
+  print(FC)
+  print(nrow(FC))
+  
+  d<-c()
+  col<-c()
+  geno<-c()
+  den<-c()
+  for (i in rownames(FC)){
+    if (i %in% WithoutVariant){
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-i
+      col<-c(col,rgb(0.5,0.5,0.5,0.8))
+      geno<-c(geno,"B")
+      den<-c(den,-1)
+    }
+    if (i %in% WithVariant){
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-i
+      col<-c(col,rgb(0.85,0.67,0.44,0.8))
+      geno<-c(geno,"D")
+      den<-c(den,-1)
+    }
+    if (i =="C57BL6"){
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-"C57BL6"
+      col<-c(col,rgb(0,0,0,1))
+      geno<-c(geno,"B")
+      den<-c(den,-1)
+    }
+    if (i =="DBA2"){
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-"DBA"
+      col<-c(col,rgb(0.7,0.5,0.3,1))
+      geno<-c(geno,"D")
+      den<-c(den,-1)
+    }
+    if (i == 'BXDF1' | i == 'DXBF1'){
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-i
+      col<-c(col,rgb(1,1,1,1))
+      geno<-c(geno,"BD")
+      den<-c(den,-1)
+    }
+    if (i %in% Else){
+      den<-c(den,20)
+      d<-c(d,FC[i,])
+      names(d)[length(d)]<-i
+      col<-c(col,rgb(1,1,1,1))
+      geno<-c(geno,"U")
+    }
+  }
+  names(geno)<-names(d)
+  print(length(d))
+  print(geno)
+  print(length(geno))
+  
+  barplot(height=d[order(d)],las=1,horiz=TRUE,col=col[order(d)],main=main,xlab="log Fold-Change",density=den[order(d)])
+}
+
+marker <- as.character(QTLinfo[6,"topmarker"])
+mdata<-SavedMarker[marker,]
+
+
+WithVariant<- names(mdata)[mdata=="D"]
+WithoutVariant<- names(mdata)[mdata=="B"]
+Else<-names(mdata)[mdata != 'D' & mdata != 'B']
+
+plotFCPheno("BXD_NREMSspecSD.quant.out","gam2_rat",WithVariant,WithoutVariant,Else,"gam2_rat","gam2_rat")
+
+pdf(file="gam2_rat.pdf",height=10,width=5)
+plotFCPheno("BXD_NREMSspecSD.quant.out","gam2_rat",WithVariant,WithoutVariant,Else,"gam2_rat","gam2_rat")
+dev.off()
+
+```
+

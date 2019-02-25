@@ -1,0 +1,171 @@
+---
+title: "Partial_Correlation_V1.0"
+output: html_document
+---
+
+```{r}
+formatData<-function(Expr,cis){
+  Strains<-colnames(Expr)
+  GenotypeMatrix<-read.table(paste(DataDir,"Rdata/Genotype.FormatedName.geno",sep=''),header=T)
+  Genepos<-read.table(paste(DataDir,"Rdata/RefSeqMiddlePosition.table",sep=''),header=T)
+  Genepos[,1]<-gsub("chr",'',Genepos[,1])
+  Genepos<-Genepos[as.character(rownames(Expr)),]
+  cisv<-cis[,2]
+  names(cisv)<-rownames(cis)
+  cisv<-as.character(cisv[rownames(Expr)])
+  names(cisv)<-as.character(rownames(Expr))
+  
+  Notincis<-c()
+  
+  for (gene in names(cisv[is.na(cisv)])){
+    if (gene %in% rownames(cis)){
+      chr<-Genepos[gene,1]
+      pos<-Genepos[gene,2]
+      tmpGM<-GenotypeMatrix[GenotypeMatrix[,1]==chr,]
+      tmpGM[,4]<-abs(pos-tmpGM[,4])
+      cisv[gene]<-as.character(tmpGM[which(tmpGM[,4]==min(tmpGM[,4])),2])
+    }else {Notincis<-c(Notincis,gene)}
+  }
+  cisvfinal<-cisv[-which(names(cisv) %in% Notincis)]
+  Exprfinal<-Expr[-which(rownames(Expr) %in% Notincis),]
+  return(list(Exprfinal,cisvfinal))
+}
+```
+
+
+```{r}
+library(qvalue)
+cisthreshold<-1
+DataDir<-"~/Link_Cluster/PhD/"
+# Load Phenotype
+load(paste(DataDir,"Rdata/SleepPhenotype2.Rdata",sep=''))
+source(paste(DataDir,"Scripts/BXDpcor_V1.0.R",sep=''))
+
+# Load data expression
+CNSD<-read.table(paste(DataDir,"GeneExpression/NormalizedExpression/htseq-count_summary.txt.NSD.CPMnormalizedWITHNSDSD.txt",sep=''),header=T,row.names=1)
+CNSD<-CNSD[,rownames(traitData)]
+CSD<-read.table(paste(DataDir,"GeneExpression/NormalizedExpression/htseq-count_summary.txt.SD.CPMnormalizedWITHNSDSD.txt",sep=''),header=T,row.names=1)
+CSD<-CSD[,rownames(traitData)]
+LNSD<-read.table(paste(DataDir,"GeneExpression/NormalizedExpression/htseq-count_summary.Liver.txt.NSD.CPMnormalizedWITHNSDSD.txt",sep=''),header=T,row.names=1)
+LNSD<-LNSD[,rownames(traitData)]
+LSD<-read.table(paste(DataDir,"GeneExpression/NormalizedExpression/htseq-count_summary.Liver.txt.SD.CPMnormalizedWITHNSDSD.txt",sep=''),header=T,row.names=1)
+LSD<-LSD[,rownames(traitData)]
+
+
+# Read cis-eQTL
+# Correction for multiple test using qvalue R packages as suggested by Ongen et al.
+eQTLCorrection<-function(t){
+  t<-t[! duplicated(t[,1]),] # remove duplicated rownames (1)
+  qt<-qvalue(t$V10)
+  qt<-as.matrix(qt$qvalues)
+  rownames(qt)<-t$V1
+  qt[is.na(qt)]<-1
+  qt<-as.data.frame(qt)
+  qt[,2]<-t[,6]
+  qt<-qt[qt[,1]<=cisthreshold,,drop=F]
+  return(qt)
+}
+
+cisCNSD<-read.table(paste(DataDir,"Rdata/ciseQTL.Cortex.NSD.txt",sep=''))
+qcisCNSD<-eQTLCorrection(cisCNSD)
+
+cisCSD<-read.table(paste(DataDir,"Rdata/ciseQTL.Cortex.SD.txt",sep=''))
+qcisCSD<-eQTLCorrection(cisCSD)
+
+cisLNSD<-read.table(paste(DataDir,"Rdata/ciseQTL.Liver.NSD.txt",sep=''))
+qcisLNSD<-eQTLCorrection(cisLNSD)
+
+cisLSD<-read.table(paste(DataDir,"Rdata/ciseQTL.Liver.SD.txt",sep=''))
+qcisLSD<-eQTLCorrection(cisLSD)
+
+Mpos<-read.table(paste(DataDir,"Rdata/Genotype.FormatedName.geno",sep=''),header=T)
+colnames(Mpos)
+
+# Format Data for partial Correlation
+form<-formatData(LSD,qcisLSD)
+LSDformated<-form[[1]]
+cisLSDformated<-form[[2]]
+
+
+GenotypeMatrix<-read.table(paste(DataDir,"Rdata/Genotype.FormatedName.geno",sep=''),header=T)
+Nmarker<-as.character(GenotypeMatrix$Locus)
+GenotypeMatrix<-GenotypeMatrix[,colnames(LSDformated)]
+rownames(GenotypeMatrix)<-Nmarker
+```
+
+```{r,eval=F}
+
+form<-formatData(CSD,qcisCSD)
+CSDformated<-form[[1]]
+cisCSDformated<-form[[2]]
+
+form<-formatData(LNSD,qcisLNSD)
+LNSDformated<-form[[1]]
+cisLNSDformated<-form[[2]]
+
+form<-formatData(CNSD,qcisCNSD)
+CNSDformated<-form[[1]]
+cisCNSDformated<-form[[2]]
+```
+
+
+First Example
+
+```{r,fig.height=10,fig.width=10}
+g1<-as.factor(as.character(GenotypeMatrix[as.character(qcisLNSD["Taf1b",2]),]))
+g2<-as.factor(as.character(GenotypeMatrix[as.character(qcisLNSD["Tuba1b",2]),]))
+e1<-rank(as.numeric(LNSD["Taf1b",]))
+e2<-rank(as.numeric(LNSD["Tuba1b",]))
+par(mfrow=c(2,2))
+plot(e1,e2,pch=19,xlab="Taf1b",ylab="Tuba1b")
+plot(e1~g1,names=c("B","D","H"),ylab="Taf1b",xlab="Genotypes")
+plot(e2~g2,names=c("B","D"),ylab="Tuba1b",xlab="Genotypes")
+col<-rep("grey",length(g1))
+col[g1==1 & g2 == 1]<-"red"
+col[g1==2 & g2 == 2]<-"blue"
+col[g1==1 & g2 == 2]<-"pink"
+col[g1==2 & g2 == 1]<-"green"
+plot(e1,e2,col=col,pch=19,xlab="Taf1b",ylab="Tuba1b")
+#plot(as.numeric(LNSD["Taf1b",]),as.numeric(LNSD["Tuba1b",]),pch=19,col=col)
+text(5,2.5,labels="BD",col="pink")
+text(5,25,labels="BB",col="red")
+text(25,5,labels="DD",col="blue")
+text(30,30,labels="DB",col="green")
+```
+
+correlation of residuals
+
+```{r}
+plot(lm(e1~g1+g2)$residuals,lm(e2~g1+g2)$residuals)
+cor(lm(e1~g1+g2)$residuals,lm(e2~g1+g2)$residuals)
+```
+
+
+Example of close genes (same cis-eQTL)
+
+```{r,fig.height=10,fig.width=10}
+g1<-as.factor(as.character(GenotypeMatrix[as.character(qcisCNSD["Btf3l4",2]),]))
+g2<-as.factor(as.character(GenotypeMatrix[as.character(qcisCNSD["Tceanc2",2]),]))
+e1<-rank(as.numeric(CNSD["Btf3l4",]))
+e2<-rank(as.numeric(CNSD["Tceanc2",]))
+cor(e1,e2)
+par(mfrow=c(2,2))
+plot(e1,e2,pch=19,xlab="Btf3l4",ylab="Tceanc2")
+plot(e1~g1,ylab="Btf3l4",xlab="Genotypes") #,names=c("B","D")
+plot(e2~g2,ylab="Tceanc2",xlab="Genotypes")
+col<-rep("grey",length(g1))
+col[g1==1 & g2 == 1]<-"red"
+col[g1==2 & g2 == 2]<-"blue"
+col[g1==1 & g2 == 2]<-"pink"
+col[g1==2 & g2 == 1]<-"green"
+plot(e1,e2,col=col,pch=19,xlab="Btf3l4",ylab="Tceanc2")
+text(20,10,labels="DD",col="blue")
+text(20,30,labels="BB",col="red")
+```
+
+correlation of residuals
+
+```{r}
+plot(lm(e1~g1+g2)$residuals,lm(e2~g1+g2)$residuals)
+cor(lm(e1~g1+g2)$residuals,lm(e2~g1+g2)$residuals)
+```

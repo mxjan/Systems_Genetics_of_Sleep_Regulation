@@ -1,0 +1,497 @@
+---
+title: "SD effect on phenotypes"
+output: html_document
+---
+
+```{r}
+library(lmerTest)
+x<-read.table("../../Rdata/Phenotypes/BXDvsRECdif.quant.out",header=T)
+y<-read.table("../../Rdata/Phenotypes/BXDvsREC.quant.out",header=T)
+y<-y[,-c(8,16,24)]
+z<-y[,seq(8,28)]-x[,seq(8,28)]
+z<-cbind(y[,seq(1,7)],z)
+write.table(z,file="Phenotypes/BXDvsRECbaseline.quant.out",quote=F,col.names=T,row.names = F)
+```
+
+```{r}
+x<-read.table("../../Rdata/Phenotypes/BXDvsREC.quant.out",header=T)
+y<-read.table("../../Rdata/Phenotypes/BXDvsRECgain.quant.out",header=T)
+z<-x[,c(23,31)]-y[,c(9,13)]
+z<-cbind(y[,seq(1,7)],z)
+write.table(z,file="Phenotypes/BXDvsRECgainbaseline.quant.out",quote=F,col.names=T,row.names = F)
+```
+
+
+Anova function for SD effects
+
+```{r}
+SDeffect<-function(File1,Pheno1,File2,Pheno2,plot=F,na=NULL){
+
+  x<-read.table(paste("Phenotypes/",File1,sep=''),header=T)
+  idx<-which(! as.character(x$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  x<-x[idx,]
+  ph1<-x[,Pheno1]
+  y<-read.table(paste("Phenotypes/",File2,sep=''),header=T)
+  idx<-which(! as.character(y$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  y<-y[idx,]
+  ph2<-y[,Pheno2]
+  
+  data<-c(ph1,ph2)
+  conds<-factor(c(rep("NSD",length(ph1)),rep("SD",length(ph2))))
+  strains<-as.factor(c(as.character(x$line),as.character(y$line)))
+  
+  if (! is.null(na)){
+    data[data==na]<-NA  
+  }
+  
+  mID<-c(as.character(x$mouseID),as.character(y$mouseID))
+  #fits<-summary(lmer(data~(1|mID)+conds+strains))
+  fits<-summary(lm(data~conds+strains))
+  pvalcond<-fits$coefficients["condsSD","Pr(>|t|)"]
+  pvalcond<-summary(aov(data~conds+strains))[[1]][1,"Pr(>F)"]
+  if (plot==T){
+    boxplot(data~conds+strains,las=2,cex.axis = 0.7)
+  }
+  
+  names(pvalcond)<-paste(Pheno1,Pheno2,sep='.')
+  return(pvalcond)
+}
+```
+
+
+States duration 
+
+```{r}
+nremp<-c()
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n2","BXDvsREC.quant.out","n2"))
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n3","BXDvsREC.quant.out","n3"))
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n4","BXDvsREC.quant.out","n4"))
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n5","BXDvsREC.quant.out","n5"))
+
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n3.4","BXDvsREC.quant.out","n3.4"))
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n2.3.4","BXDvsREC.quant.out","n2.3.4"))
+nremp<-c(nremp,SDeffect("BXDvsRECbaseline.quant.out","n2.3.4.5","BXDvsREC.quant.out","n2.3.4.5"))
+
+SDeffect("BXDvsRECbaseline.quant.out","n3","BXDvsREC.quant.out","n3",plot=T)
+```
+
+```{r}
+remp<-c()
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r2","BXDvsREC.quant.out","r2"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r3","BXDvsREC.quant.out","r3"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r4","BXDvsREC.quant.out","r4"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r5","BXDvsREC.quant.out","r5"))
+
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r3.4","BXDvsREC.quant.out","r3.4"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r2.3.4","BXDvsREC.quant.out","r2.3.4"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r2.3.4.5","BXDvsREC.quant.out","r2.3.4.5"))
+```
+
+```{r}
+wakep<-c()
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w2","BXDvsREC.quant.out","w2"))
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w3","BXDvsREC.quant.out","w3"))
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w4","BXDvsREC.quant.out","w4"))
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w5","BXDvsREC.quant.out","w5"))
+
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w3.4","BXDvsREC.quant.out","w3.4"))
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w2.3.4","BXDvsREC.quant.out","w2.3.4"))
+wakep<-c(wakep,SDeffect("BXDvsRECbaseline.quant.out","w2.3.4.5","BXDvsREC.quant.out","w2.3.4.5"))
+```
+
+REM ratio
+
+```{r}
+remrp<-c()
+remrp<-c(remrp,SDeffect("BXD_NR-ratio.quant.out","ratLb","BXD_NR-ratio.quant.out","ratLr"))
+remrp<-c(remrp,SDeffect("BXD_NR-ratio.quant.out","ratDb","BXD_NR-ratio.quant.out","ratDr"))
+remrp<-c(remrp,SDeffect("BXD_NR-ratio.quant.out","rat24b","BXD_NR-ratio.quant.out","rat18r"))
+```
+
+TDW
+```{r}
+tdwp<-c()
+tdwp<-c(tdwp,SDeffect("BXD_TDWh.quant.out","TDW_Db.","BXD_TDWh.quant.out","TDW_Dr."))
+```
+
+TPF during REM
+
+```{r}
+tpfremp<-c()
+tpfremp<-c(tpfremp,SDeffect("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr1"))
+tpfremp<-c(tpfremp,SDeffect("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr2"))
+
+SDeffect("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr1",plot=T)
+```
+
+TPF during TDW in dark
+
+```{r}
+tpftdwd<-c()
+tpftdwd<-c(tpftdwd,SDeffect("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr1"))
+tpftdwd<-c(tpftdwd,SDeffect("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr2"))
+```
+
+
+
+```{r}
+activityp<-c()
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR1D"))
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR2D"))
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","act12L","BXDactrec.quant.out","actR2L"))
+
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","relact12D","BXDactrec.quant.out","actR1Dr"))
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","relact12D","BXDactrec.quant.out","actR1Dr"))
+activityp<-c(activityp,SDeffect("actwak1224bsl.quant.out","relact12L","BXDactrec.quant.out","actR2Lr"))
+```
+
+```{r}
+nbasp<-c()
+nbasp<-c(nbasp,SDeffect("BXD_nBAbslrec.quant.out","nBAbsl","BXD_nBAbslrec.quant.out","nBArec"))
+nbasp<-c(nbasp,SDeffect("BXD_nBAbslrec.quant.out","nBSbsl","BXD_nBAbslrec.quant.out","nBSrec"))
+```
+
+```{r}
+eegspecsdp<-c()
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","del_b","BXD_NREMSspecSD.quant.out","del_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","del1_b","BXD_NREMSspecSD.quant.out","del1_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","del2_b","BXD_NREMSspecSD.quant.out","del2_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","the_b","BXD_NREMSspecSD.quant.out","the_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","sig_b","BXD_NREMSspecSD.quant.out","sig_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","bet_b","BXD_NREMSspecSD.quant.out","bet_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","gam1_b","BXD_NREMSspecSD.quant.out","gam1_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect("BXD_NREMSspecSD.quant.out","gam2_b","BXD_NREMSspecSD.quant.out","gam2_r",na=-9.999))
+SDeffect("BXD_NREMSspecSD.quant.out","gam2_b","BXD_NREMSspecSD.quant.out","gam2_r",na=-9.999,plot=T)
+SDeffect("BXD_NREMSspecSD.quant.out","del_b","BXD_NREMSspecSD.quant.out","del_r",na=-9.999,plot=T)
+SDeffect("BXD_NREMSspecSD.quant.out","bet_b","BXD_NREMSspecSD.quant.out","bet_r",na=-9.999,plot=T)
+```
+
+
+```{r}
+pvalues<-c(nremp,remp,wakep,remrp,tdwp,tpfremp,tpftdwd,activityp,nbasp,eegspecsdp)
+adjpvalues<-p.adjust(pvalues)
+adjpvalues[adjpvalues>0.05]
+
+length(adjpvalues)
+```
+
+
+Compute fold change per strains
+
+```{r}
+FCcomput<-function(File1,Pheno1,File2,Pheno2,plot=F,na=NULL){
+  x<-read.table(paste("Phenotypes/",File1,sep=''),header=T)
+  idx<-which(! as.character(x$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  x<-x[idx,]
+  ph1<-x[,Pheno1]
+  y<-read.table(paste("Phenotypes/",File2,sep=''),header=T)
+  idx<-which(! as.character(y$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  y<-y[idx,]
+  ph2<-y[,Pheno2]
+  
+  data<-c(ph1,ph2)
+  conds<-factor(c(rep("NSD",length(ph1)),rep("SD",length(ph2))))
+  strains<-as.factor(c(as.character(x$line),as.character(y$line)))
+  
+  if (! is.null(na)){
+    data[data==na]<-NA  
+  }
+  
+  fc<-c()
+  for (i in unique(strains)){
+    fc<-c(fc,c(mean(data[conds=="SD" & strains==i],na.rm=T)/mean(data[conds=="NSD" & strains==i],na.rm=T)))
+  }
+
+  fc<-log2(mean(fc))
+  
+  names(fc)<-paste(Pheno1,Pheno2,sep='.')
+  return(fc)
+}
+```
+
+
+Plot
+
+```{r}
+fc<-c()
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n2","BXDvsREC.quant.out","n2"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n3","BXDvsREC.quant.out","n3"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n4","BXDvsREC.quant.out","n4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n5","BXDvsREC.quant.out","n5"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n3.4","BXDvsREC.quant.out","n3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n2.3.4","BXDvsREC.quant.out","n2.3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","n2.3.4.5","BXDvsREC.quant.out","n2.3.4.5"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r2","BXDvsREC.quant.out","r2"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r3","BXDvsREC.quant.out","r3"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r4","BXDvsREC.quant.out","r4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r5","BXDvsREC.quant.out","r5"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r3.4","BXDvsREC.quant.out","r3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r2.3.4","BXDvsREC.quant.out","r2.3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","r2.3.4.5","BXDvsREC.quant.out","r2.3.4.5"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w2","BXDvsREC.quant.out","w2"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w3","BXDvsREC.quant.out","w3"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w4","BXDvsREC.quant.out","w4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w5","BXDvsREC.quant.out","w5"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w3.4","BXDvsREC.quant.out","w3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w2.3.4","BXDvsREC.quant.out","w2.3.4"))
+fc<-c(fc,FCcomput("BXDvsRECbaseline.quant.out","w2.3.4.5","BXDvsREC.quant.out","w2.3.4.5"))
+fc<-c(fc,FCcomput("BXD_NR-ratio.quant.out","ratLb","BXD_NR-ratio.quant.out","ratLr"))
+fc<-c(fc,FCcomput("BXD_NR-ratio.quant.out","ratDb","BXD_NR-ratio.quant.out","ratDr"))
+fc<-c(fc,FCcomput("BXD_NR-ratio.quant.out","rat24b","BXD_NR-ratio.quant.out","rat18r"))
+fc<-c(fc,FCcomput("BXD_TDWh.quant.out","TDW_Db.","BXD_TDWh.quant.out","TDW_Dr."))
+fc<-c(fc,FCcomput("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr1"))
+fc<-c(fc,FCcomput("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr2"))
+fc<-c(fc,FCcomput("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr1"))
+fc<-c(fc,FCcomput("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr2"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR1D"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR2D"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","act12L","BXDactrec.quant.out","actR2L"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","relact12D","BXDactrec.quant.out","actR1Dr"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","relact12D","BXDactrec.quant.out","actR1Dr"))
+fc<-c(fc,FCcomput("actwak1224bsl.quant.out","relact12L","BXDactrec.quant.out","actR2Lr"))
+fc<-c(fc,FCcomput("BXD_nBAbslrec.quant.out","nBAbsl","BXD_nBAbslrec.quant.out","nBArec"))
+fc<-c(fc,FCcomput("BXD_nBAbslrec.quant.out","nBSbsl","BXD_nBAbslrec.quant.out","nBSrec"))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","del_b","BXD_NREMSspecSD.quant.out","del_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","del1_b","BXD_NREMSspecSD.quant.out","del1_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","del2_b","BXD_NREMSspecSD.quant.out","del2_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","the_b","BXD_NREMSspecSD.quant.out","the_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","sig_b","BXD_NREMSspecSD.quant.out","sig_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","bet_b","BXD_NREMSspecSD.quant.out","bet_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","gam1_b","BXD_NREMSspecSD.quant.out","gam1_r",na=-9.999))
+fc<-c(fc,FCcomput("BXD_NREMSspecSD.quant.out","gam2_b","BXD_NREMSspecSD.quant.out","gam2_r",na=-9.999))
+```
+
+```{r,fig.height=8,fig.width=6}
+library(RColorBrewer)
+colf<-brewer.pal(3,"Set1")
+col<-rep("black",length(adjpvalues))
+# col[c(seq(1,15),seq(27,30),39,40)]<-colf[3]
+# col[c(seq(24,26))]<-colf[1]
+# col[c(seq(16,23),seq(31,38))]<-colf[2]
+
+col[c(seq(1,25),seq(36,37))]<-colf[3]
+col[c(seq(30,35))]<-colf[1]
+col[c(seq(26,29),seq(38,45))]<-colf[2]
+
+
+plot(fc,-log10(adjpvalues),pch=19,cex=1.5,ylab="log adjusted p-value",xlab="log fold change",col=col)
+abline(h=1.3,col="red")
+abline(v=0,col="red")
+
+```
+
+```{r}
+m<-matrix(ncol=3,nrow=length(adjpvalues))
+m[,1]<-as.numeric(-log10(adjpvalues))
+m[,2]<-fc
+m[,3]<-col
+m[,3][m[,3]=="#4DAF4A"]<-"States"
+m[,3][m[,3]=="#377EB8"]<-"EEG"
+m[,3][m[,3]=="#E41A1C"]<-"Activity"
+m<-as.data.frame(m)
+m
+m[,1]<-as.numeric(as.character(m[,1]))
+m[,2]<-as.numeric(as.character(m[,2]))
+library(ggplot2)
+ggplot(m,aes(V1,V2))+geom_point(aes(colour=V3),size=5)+scale_colour_brewer(name="Type",palette = "Set1")+
+  geom_vline(xintercept=-log10(0.05),col="red",size=2)+scale_x_reverse()+xlab("log qvalue")+ylab("Fold-Change")+
+  theme(panel.background = element_rect(fill = rgb(0,0,0,alpha=0.1), colour = 'black'))+
+  geom_hline(aes(yintercept=0),col="black",size=1)
+
+pdf("Sleep_Phenotype_SD.pdf")
+
+ggplot(m,aes(V1,V2))+geom_point(aes(colour=V3),size=5)+scale_colour_brewer(name="Type",palette = "Set1")+
+  geom_vline(xintercept=-log10(0.05),col="red",size=2)+scale_x_reverse()+xlab("log qvalue")+ylab("Fold-Change")+
+  theme(panel.background = element_rect(fill = rgb(0,0,0,alpha=0.1), colour = 'black'))+
+  geom_hline(aes(yintercept=0),col="black",size=1)
+
+dev.off()
+
+```
+
+
+
+```{r}
+m<-matrix(c(fc,-log10(adjpvalues)),ncol=2)
+rownames(m)<-names(fc)
+m
+```
+
+
+# Using only condition as test
+
+
+```{r}
+SDeffect2<-function(File1,Pheno1,File2,Pheno2,plot=F,na=NULL){
+  x<-read.table(paste("Phenotypes/",File1,sep=''),header=T)
+  idx<-which(! as.character(x$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  x<-x[idx,]
+  ph1<-x[,Pheno1]
+  y<-read.table(paste("Phenotypes/",File2,sep=''),header=T)
+  idx<-which(! as.character(y$line) %in% c("BXD005","BXD029","BXD029TL","BXD032","BXD063")) 
+  y<-y[idx,]
+  ph2<-y[,Pheno2]
+  
+  data<-c(ph1,ph2)
+  conds<-factor(c(rep("NSD",length(ph1)),rep("SD",length(ph2))))
+  strains<-as.factor(c(as.character(x$line),as.character(y$line)))
+  
+  if (! is.null(na)){
+    data[data==na]<-NA  
+  }
+  
+  pvalcond<-summary(aov(data~conds))[[1]][1,"Pr(>F)"]
+  if (plot==T){
+    boxplot(data~conds,las=2,cex.axis = 0.7)
+  }
+  
+  names(pvalcond)<-paste(Pheno1,Pheno2,sep='.')
+  return(pvalcond)
+}
+```
+
+
+States duration 
+
+```{r}
+File1<-"BXDvsRECbaseline.quant.out"
+Pheno1<-"n2"
+File2<-"BXDvsREC.quant.out"
+Pheno2<-"n2"
+nremp<-c()
+nremp<-c(nremp,SDeffect2("BXDvsRECbaseline.quant.out","n2","BXDvsREC.quant.out","n2"))
+nremp<-c(nremp,SDeffect2("BXDvsRECbaseline.quant.out","n3","BXDvsREC.quant.out","n3"))
+nremp<-c(nremp,SDeffect2("BXDvsRECbaseline.quant.out","n4","BXDvsREC.quant.out","n4"))
+nremp<-c(nremp,SDeffect2("BXDvsRECbaseline.quant.out","n5","BXDvsREC.quant.out","n5"))
+```
+
+```{r}
+remp<-c()
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r2","BXDvsREC.quant.out","r2"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r3","BXDvsREC.quant.out","r3"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r4","BXDvsREC.quant.out","r4"))
+remp<-c(remp,SDeffect("BXDvsRECbaseline.quant.out","r5","BXDvsREC.quant.out","r5"))
+```
+
+```{r}
+wakep<-c()
+wakep<-c(wakep,SDeffect2("BXDvsRECbaseline.quant.out","w2","BXDvsREC.quant.out","w2"))
+wakep<-c(wakep,SDeffect2("BXDvsRECbaseline.quant.out","w3","BXDvsREC.quant.out","w3"))
+wakep<-c(wakep,SDeffect2("BXDvsRECbaseline.quant.out","w4","BXDvsREC.quant.out","w4"))
+wakep<-c(wakep,SDeffect2("BXDvsRECbaseline.quant.out","w5","BXDvsREC.quant.out","w5"))
+```
+
+REM ratio
+
+```{r}
+remrp<-c()
+remrp<-c(remrp,SDeffect2("BXD_NR-ratio.quant.out","ratLb","BXD_NR-ratio.quant.out","ratLr"))
+remrp<-c(remrp,SDeffect2("BXD_NR-ratio.quant.out","ratDb","BXD_NR-ratio.quant.out","ratDr"))
+remrp<-c(remrp,SDeffect2("BXD_NR-ratio.quant.out","rat24b","BXD_NR-ratio.quant.out","rat18r"))
+```
+
+TDW
+```{r}
+tdwp<-c()
+tdwp<-c(tdwp,SDeffect2("BXD_TDWh.quant.out","TDW_Lbh","BXD_TDWh.quant.out","TDW_Lrh"))
+tdwp<-c(tdwp,SDeffect2("BXD_TDWh.quant.out","TDW_Lb.","BXD_TDWh.quant.out","TDW_Lr."))
+tdwp<-c(tdwp,SDeffect2("BXD_TDWh.quant.out","TDW_Dbh","BXD_TDWh.quant.out","TDW_Drh"))
+tdwp<-c(tdwp,SDeffect2("BXD_TDWh.quant.out","TDW_Db.","BXD_TDWh.quant.out","TDW_Dr."))
+```
+
+TPF during REM
+
+```{r}
+tpfremp<-c()
+tpfremp<-c(tpfremp,SDeffect2("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr1"))
+tpfremp<-c(tpfremp,SDeffect2("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr2"))
+```
+
+TPF during TDW in dark
+
+```{r}
+tpftdwd<-c()
+tpftdwd<-c(tpftdwd,SDeffect2("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr1"))
+tpftdwd<-c(tpftdwd,SDeffect2("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr2"))
+```
+
+
+
+```{r}
+activityp<-c()
+activityp<-c(activityp,SDeffect2("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR1D"))
+activityp<-c(activityp,SDeffect2("actwak1224bsl.quant.out","act12D","BXDactrec.quant.out","actR2D"))
+activityp<-c(activityp,SDeffect2("actwak1224bsl.quant.out","act12L","BXDactrec.quant.out","actR2L"))
+```
+
+```{r}
+nbasp<-c()
+nbasp<-c(nbasp,SDeffect2("BXD_nBAbslrec.quant.out","nBAbsl","BXD_nBAbslrec.quant.out","nBArec"))
+nbasp<-c(nbasp,SDeffect2("BXD_nBAbslrec.quant.out","nBAref","BXD_nBAbslrec.quant.out","nBArec"))
+nbasp<-c(nbasp,SDeffect2("BXD_nBAbslrec.quant.out","nBSbsl","BXD_nBAbslrec.quant.out","nBSrec"))
+nbasp<-c(nbasp,SDeffect2("BXD_nBAbslrec.quant.out","nBSref","BXD_nBAbslrec.quant.out","nBSrec"))
+```
+
+```{r}
+eegspecsdp<-c()
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","del_b","BXD_NREMSspecSD.quant.out","del_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","del1_b","BXD_NREMSspecSD.quant.out","del1_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","del2_b","BXD_NREMSspecSD.quant.out","del2_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","the_b","BXD_NREMSspecSD.quant.out","the_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","sig_b","BXD_NREMSspecSD.quant.out","sig_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","bet_b","BXD_NREMSspecSD.quant.out","bet_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","gam1_b","BXD_NREMSspecSD.quant.out","gam1_r",na=-9.999))
+eegspecsdp<-c(eegspecsdp,SDeffect2("BXD_NREMSspecSD.quant.out","gam2_b","BXD_NREMSspecSD.quant.out","gam2_r",na=-9.999))
+```
+
+24h gain/loss
+```{r}
+gainloss24hp<-c()
+gainloss24hp<-c(gainloss24hp,SDeffect2("BXDvsRECgainbaseline.quant.out","n2.3.4.5","BXDvsREC.quant.out","n2.3.4.5"))
+gainloss24hp<-c(gainloss24hp,SDeffect2("BXDvsRECgainbaseline.quant.out","r2.3.4.5","BXDvsREC.quant.out","r2.3.4.5"))
+```
+
+```{r}
+pvalues<-c(nremp,remp,wakep,remrp,tdwp,tpfremp,tpftdwd,activityp,nbasp,eegspecsdp,gainloss24hp)
+adjpvalues2<-p.adjust(pvalues)
+adjpvalues[adjpvalues>0.05]
+
+length(adjpvalues2)
+```
+
+```{r,fig.height=8,fig.width=6,eval=F}
+ plot(fc,-log10(adjpvalues2),pch=19,cex=1.5,ylab="log adjusted p-value",xlab="log fold change",col=col)
+ abline(h=1.3,col="red")
+ abline(v=0,col="red")
+```
+
+```{r,eval=F}
+m<-matrix(c(-log10(adjpvalues2),-log10(adjpvalues)),ncol=2)
+rownames(m)<-names(fc)
+m[m[,1]<1.3 & m[,2]>=1.3,]
+```
+
+```{r,fig.width=10,fig.height=10,eval=F}
+par(mfrow=c(2,1))
+SDeffect("BXDvsRECbaseline.quant.out","r5","BXDvsREC.quant.out","r5",plot=T)
+SDeffect2("BXDvsRECbaseline.quant.out","r5","BXDvsREC.quant.out","r5",plot=T)
+```
+
+```{r,fig.width=10,fig.height=10,eval=F}
+par(mfrow=c(2,1))
+SDeffect("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr2",plot=T)
+SDeffect2("BXD_PS_tpf.quant.out","TPF_Lb","BXD_PS_tpf.quant.out","TPF_Lr2",plot=T)
+```
+
+```{r,fig.width=10,fig.height=10,eval=F}
+par(mfrow=c(2,1))
+SDeffect("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr1",plot=T)
+SDeffect2("BXD_TDW_tpf.quant.out","TPF_Db","BXD_TDW_tpf.quant.out","TPF_Dr1",plot=T)
+```
+
+```{r,fig.width=10,fig.height=10,eval=F}
+par(mfrow=c(2,1))
+SDeffect("BXD_NREMSspecSD.quant.out","gam1_b","BXD_NREMSspecSD.quant.out","gam1_r",na=-9.999,plot=T)
+SDeffect2("BXD_NREMSspecSD.quant.out","gam1_b","BXD_NREMSspecSD.quant.out","gam1_r",na=-9.999,plot=T)
+```
+

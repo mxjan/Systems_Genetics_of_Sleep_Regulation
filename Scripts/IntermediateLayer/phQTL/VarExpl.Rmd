@@ -1,0 +1,644 @@
+---
+title: "Heritability"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: sandstone
+    df_print: paged
+    rows.print: 6
+---
+
+* For single QTL, we can estimate variance explained with the following formula: 1-10^(-2*LOD/n)
+
+* For multiple QTL, we use the fitqtl function
+
+```{r,echo=T,warning=F,error=F,message=F}
+library(parallel)
+library(knitr)
+library(rmarkdown)
+library(psych)
+library(qvalue)
+library(qtl)
+library(MASS)
+library(stats)
+#library(rPython)
+```
+
+
+```{r,warning=F,error=F,message=F,results='hide'}
+source("FileLocation.R")
+file.sources = list.files(SCRIPTDIR,pattern="*.R$")
+sapply(paste(SCRIPTDIR,file.sources,sep=''),source)
+```
+
+We use a seed to reproduce our results when running permuations
+
+```{r,echo=T}
+set.seed(1)
+```
+
+# Fast delta power after SD
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-98
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+# Fast delta gain after SD
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-99
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+
+# Slow delta power after SD
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-95
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+
+# Slow delta gain after SD
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-96
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+
+# Delta gain after SD [1-4Hz]
+
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-93
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+
+
+# Delta rec after SD [1-4Hz]
+
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-92
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+
+qtls<-makeqtl(QTL,chr=chr[c(1,2)],pos=pos[c(1,2)],what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+```
+
+# NREM gain ZT12-18
+
+```{r}
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-240
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+set.seed(151444)
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+fitqtl(QTL,pheno.col=1,qtl=qtls,formula = y~Q1+Q2,method="hk")
+
+max(QTL.scan$lod)
+
+1-10^((-2*4.382556)/33)
+1-10^((-2*5.665844)/33)
+
+fitqtl
+
+54.64601-20.340560
+
+
+```
+
+
+
+
+# PC ae C38 2 in SD
+
+```{r}
+FileSleepPhenotype<-paste(DATADIR,"MetabolitesMean.SD.txt",sep="")
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-91
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+set.seed(151444)
+qp<-scanone(QTL,pheno.col=1,method="em",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+
+max(QTL.scan$lod)
+
+1-10^(-2*3.277699/33)
+```
+
+```{r}
+x2<-AllPheno[,PhenoID]
+names(x2)<-AllPheno$ID
+x2
+```
+```{r}
+Input<-"../../QTL/Metabolite/SD/MetabolitesMean.SD.QTLR"
+# Read file
+QTL<-read.cross("csv",file=Input,genotypes=c("BB", "BD", "DD","EE","FF"),allele=c("B", "D"),estimate.map=FALSE,na.strings=c("NA","-"))
+
+# We use the RISIB model
+QTL<-convert2risib(QTL)
+
+# close marker are separated
+QTL<-jittermap(QTL,amount=1e-6)
+
+# We use a 5% error probability
+QTL <- calc.genoprob(QTL, step=1,error.prob=0.05)
+
+QTL.scan<-scanone(QTL,pheno.col=90,method="em",model='normal')
+plot(QTL.scan)
+
+
+
+QTL<-read.cross("csv",file=Input,genotypes=c("BB", "BD", "DD","EE","FF"),allele=c("B", "D"),estimate.map=FALSE,na.strings=c("NA","-"))
+QTL<-convert2risib(QTL)
+QTL<-jittermap(QTL,amount=1e-6)
+QTL <- calc.genoprob(QTL, step=1,error.prob=0.065)
+```
+
+
+
+# TPF
+
+
+```{r}
+FileSleepPhenotype<-paste(DATADIR,"AllPhenotest.txt",sep="")
+AllPheno<-read.table(FileSleepPhenotype,header=T)
+PhenoID<-152
+PhenotypeName<-colnames(AllPheno)[PhenoID]
+PhenotypeName
+
+FileGenotype<-"../../Rdata/Genotype.FormatedName.geno"
+Mice<-colnames(read.table(FileExpressionCortexNSD,header=T))
+Mice<-Mice[-c(1,5,6,7,18,39,40,41,42,43,44)] # get mices, remove old strains, F1 and BXD063
+Files<-GenerateFiles(PhenotypeName,Mice,"test",Tissu="C",Condition="SD",PhenotypesType="S")
+PhenotypeData<-Files[[1]]
+GenotypeData<-Files[[2]]
+ExpressionData<-Files[[3]]
+CopyciseQTL("test",Tissu="C",Condition="SD")
+OutputName<-"test"
+system(paste(FormatQTLR,GenotypeData,PhenotypeData,paste(OutputName,'.QTLR',sep='')))
+QTL<<-QTLScan(paste(OutputName,'.QTLR',sep=''))
+QTL.scan <<- scanone(QTL,pheno.col=1,method="em",model='normal')
+set.seed(151444)
+qp<-scanone(QTL,pheno.col=1,method="hk",model='normal',n.perm=1000,n.cluster=3)
+QTLMB<<-QTLScan(paste(OutputName,'.QTLR.MBDistance.QTLR',sep=''))
+scanMB<<-scanone(QTLMB,method="em")
+signif<-as.numeric(quantile(qp,prob=1-0.05)[,"lod"])
+sugg<-as.numeric(quantile(qp,prob=1-0.67)[,"lod"])
+
+QTLsPeaks<-QTLPeakDetection(QTL.scan,1.5,sugg,signif,scanMB)
+QTLsPeaks<-as.data.frame(QTLsPeaks)
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)")
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+```{r}
+plot(QTL.scan,ylim=c(0,max(signif)+0.5),main="GeneNetwork old marker (2005)",chr=unique(QTLsPeaks$Chr))
+abline(h=signif,col="red");abline(h=sugg,col="blue")
+```
+
+
+```{r}
+chr<-c()
+pos<-c()
+for (i in 1:nrow(QTLsPeaks)){
+  PeakChr<-as.character(QTLsPeaks[i,]$Chr)
+  PeakStart<-as.numeric(as.character(QTLsPeaks[i,]$cMStart))
+  PeakEnd<-as.numeric(as.character(QTLsPeaks[i,]$cMEnd))
+  idx<-which(QTL.scan$chr==PeakChr & QTL.scan$pos>=PeakStart & QTL.scan$pos<=PeakEnd)
+  interval<-QTL.scan[idx,]
+  chr<-c(chr,unique(interval$chr))
+  pos<-c(pos,interval$pos[which(interval$lod==max(interval$lod))[1]])
+}
+chr
+pos
+qtls<-makeqtl(QTL,chr=chr,pos=pos,what="prob")
+fitqtl(QTL,pheno.col=1,qtl=qtls)
+
+max(QTL.scan$lod)
+
+1-10^(-2*4.382556/33)
+```
+
+

@@ -1,0 +1,109 @@
+---
+title: "Differential Expression Metabolites"
+output: html_document
+---
+
+# Analysis to detect metabolic change after sleep deprivation
+
+We aim to detect the metabolites that significantly change after sleep deprivation. Our dataset contain the metabolic concentration value for BXD mice, parental and F1.
+
+As our BXD lines respond differently to sleep deprivation, we include in our model the specific lines effect.
+
+
+We read the file
+
+```{r}
+File<-"../Data/Metabolite_BXD.txt"
+x<-read.table(File,header=T,sep="\t")
+n<-x[1,] # Contains the metabolites type
+names(n)<-gsub(".","_",names(n),fixed = TRUE) # reformate a bit the data
+x<-x[-1,] # We remove the first lines containing the metabolites type
+```
+
+Some of our results contains Null values (-1), we replace them by NA values
+
+```{r}
+head(x[1:10,1:10])
+x[x==-1]<-NA
+```
+
+We compute differential expression pvalue using 2 factor anova:
+
+We use the lines effect (Group) and the Condition effect
+
+We compute also the global fold change effect of sleep deprivation.
+
+```{r}
+cpval<-c()
+fc<-c()
+for (i in 6:ncol(x)){ # we only start at column 6. (previous column contains other information)
+  cpval<-c(cpval,summary(aov(as.numeric(as.character(x[,i]))~factor(x$Group)+factor(x$Condition)))[[1]][2,"Pr(>F)"])
+  fit<-lm(as.numeric(as.character(x[,i]))~factor(x$Group)+factor(x$Condition)) 
+  coefsd<-fit$coefficients["factor(x$Condition)SD"]
+  intercept<-fit$coefficients["(Intercept)"]
+  fc<-c(fc,(intercept+coefsd)/intercept)
+}
+names(cpval)<-colnames(x)[6:ncol(x)]
+names(fc)<-colnames(x)[6:ncol(x)]
+```
+
+We correct for false discovery rate
+
+```{r}
+cpval<-p.adjust(cpval,method="fdr")
+```
+
+
+We rename a few metabolites for the figures
+
+```{r}
+n6<-names(n)[seq(41,48)]
+n7<-names(n)[seq(49,79)]
+n8<-names(n)[seq(80,115)]
+n[n6]="Lysophosphatidylcholine"
+n[n7]="Phosphatidylcholine (diacyl)"
+n[n8]="Phosphatidylcholine (acyl-alkyl)"
+nn<-c()
+for (i in 6:length(n)){
+	nn<-c(nn,as.character(n[1,i]))
+}
+```
+
+We save our results
+
+```{r}
+MM<-matrix(nrow=124,ncol=4)
+MM[,1]<-names(cpval)
+MM[,2]<-nn
+MM[,3]<-cpval
+MM[,4]<-fc
+
+colnames(MM)<-c("Metabolite","Type","adjPval","FC")
+MM<-as.data.frame(MM)
+write.table(MM,file="Differential_Expression_Metabolites_Results.txt",quote=F,sep="\t")
+```
+
+We plot our results (Figure from the paper)
+
+```{r}
+library(ggplot2)
+g<-ggplot(MM,aes(-log10(as.numeric(as.character(MM$adjPval))),log2(as.numeric(as.character(MM$FC)))))+geom_point(aes(colour=MM$Type),size=4)+scale_colour_brewer(name="Metabolites",palette = "Set1")+
+  geom_vline(xintercept=-log10(0.05),col="red",size=2)+scale_x_reverse()+xlab("log FDR adjusted p-value")+ylab("log fold−change")+
+  theme(panel.background = element_rect(fill = rgb(0,0,0,alpha=0.1), colour = 'black'))+
+  geom_hline(aes(yintercept=0),col="black",size=1)
+g
+pdf("Metabolite_DE.pdf",height = 8, width = 8)
+g
+dev.off()
+```
+
+```{r}
+nrow(MM[as.numeric(as.character(MM$adjPval))<=0.05,])
+```
+
+```{r}
+MM[as.numeric(as.character(MM$adjPval))<=0.05,]
+```
+
+
+
