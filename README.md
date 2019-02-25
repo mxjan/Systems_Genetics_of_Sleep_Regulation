@@ -25,7 +25,7 @@ For documentation about the scripts/Rmarkdowns and the required input files, see
 
 # Data
 
-* All data described as 'Data/*' in documentation can be found on our associated [website](https://bxd.vital-it.ch/#/) as a Data_mm9.tar.gz
+* All data and Rmarkdown output described as 'Data/*' in the documentation can be found on our associated [website](https://bxd.vital-it.ch/#/) as a Data_mm9.tar.gz
 * RNA-seq data can be found on [Gene Expression Omnibus](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114845)
 * EEG/Behavioral data can be found on [Figshare](https://figshare.com/)
 
