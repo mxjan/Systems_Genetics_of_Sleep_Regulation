@@ -6,7 +6,13 @@ This project uses a systems genetics approach to study sleep regulation in the B
 
 [A systems genetics resource and analysis of sleep regulation in the mouse](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2005750)
 
-associated [website](https://bxd.vital-it.ch/#/)
+Data-mining associated [website](https://bxd.vital-it.ch/#/)
+
+## Data
+
+* All data and Rmarkdown output described as 'Data/*' in the documentation can be found on our associated [website](https://bxd.vital-it.ch/#/) as a Data_mm9.tar.gz
+* RNA-seq data can be found on [Gene Expression Omnibus](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114845)
+* EEG/Behavioral data can be found on [Figshare](https://figshare.com/)
 
 
 # Authors
@@ -23,11 +29,6 @@ associated [website](https://bxd.vital-it.ch/#/)
 
 For documentation about the scripts/Rmarkdowns and the required input files, see the Documentation.html file
 
-# Data
-
-* All data and Rmarkdown output described as 'Data/*' in the documentation can be found on our associated [website](https://bxd.vital-it.ch/#/) as a Data_mm9.tar.gz
-* RNA-seq data can be found on [Gene Expression Omnibus](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114845)
-* EEG/Behavioral data can be found on [Figshare](https://figshare.com/)
 
 # License
 
