@@ -13,7 +13,7 @@ output:
 
 Use the following script and command to generate md file:
 
-Rscript RmdTomd.R HivePlot_v3.1
+Rscript RmdTomd.R HivePlot_v3.2
 
 # Generation of Hiveplot figures
 
@@ -29,7 +29,7 @@ FILENAME <- paste(NAME,VERSION,COMMENTS,sep='_')
 Load Data, Dir & packages required for the analysis
 
 ```{r, echo=TRUE}
-DataDir <- "../../../Data/" # location of data files (QTLs, transformed raw data, ...)
+DataDir <- "../../../../Data/" # location of data files (QTLs, transformed raw data, ...)
 source("Plot2.R") # modified functions of HiveR to generate the Hiveplots images
 source("../../IntermediateLayer/PartialCorrelation/BXDpcor.R") # See this script for Liver-Cortex Correlation (use for Tcor files)
 
@@ -271,13 +271,13 @@ Here we rerun all scripts to generate all correlation matrix or Table required, 
 ```{r}
 # Control if a file containing precomputed data exist: if yes, load it, if not compute it and save it.
 PRECOMPUTEDFILENAME <- paste(FILENAME,'.PrecomputedCorrelations.Rdata', sep='')
-if (file.exists(paste(DataDir,PRECOMPUTEDFILENAME, sep=''))){
-  load(paste(DataDir,PRECOMPUTEDFILENAME, sep=''))
+if (file.exists(paste(DataDir,"HighLayer/Hiveplots/",PRECOMPUTEDFILENAME, sep=''))){
+  load(paste(DataDir,"HighLayer/Hiveplots/",PRECOMPUTEDFILENAME, sep=''))
 }else{
   # Create correlation matrix and filter using setup hard thresholds (variable finished by 1 -> SD; 2 -> NSD)
   # Cortex~Liver
   ##Tcor1 <- cor(t(CSD),t(LSD),method="pearson")
-  load(paste(DataDir,"pcor_spearman_CortexSD_LiverSD.Rdata", sep=""))
+  load(paste(DataDir, "IntermediateLayer/partial_correlation/","pcor_spearman_CortexSD_LiverSD.Rdata", sep=""))
   Tcor1 <- t
   idxTcor1 <- which(abs(Tcor1)>=quantile(abs(Tcor1), na.rm=TRUE, prob=quantilethreshold), arr.ind=TRUE)
   print(min(abs(Tcor1[idxTcor1])))
