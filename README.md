@@ -12,6 +12,7 @@ Data-mining associated [website](https://bxd.vital-it.ch/#/)
 
 * All data and Rmarkdown output described as 'Data/*' in the documentation can be found on our associated [website](https://bxd.vital-it.ch/#/) as a Data_mm9.tar.gz
 * RNA-seq data can be found on [Gene Expression Omnibus](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114845)
+* RNA-seq fastQC reports can be found on our [website](https://bxd.vital-it.ch/#/dataset/1) as RNA_Seq_FastQC_reports.zip
 * EEG/Behavioral data can be found on [Figshare](https://figshare.com/)
 
 
