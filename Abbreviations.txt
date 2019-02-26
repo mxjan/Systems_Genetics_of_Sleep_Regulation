@@ -1,0 +1,40 @@
+Abbreviations
+
+B6: C57BL/6J (mouse strain)
+C: cortex
+cor: correlation
+DBA\2J (mouse strain)
+DE: differential expression
+DOI: digital object identifier
+DRO: digital reseach object
+e: expression (gene expression)
+EEG: electroencephalography
+EM: expected-maximization
+EMG: electromyography
+FAIR: findable, accessible, interoperable in order to be reusable
+G: gene (large term: DNA=RNA=protein)
+GEO: gene expression omnibus
+GRP: genetic reference population
+L: liver
+LC-MS: liquid chromatography coupled with mass spectrometry
+LD: linkage disequiibrium
+LMA: locomotor activity
+LOD: log odd
+LRS: likelihood ratio statistics
+M: metabolites
+MDS: multidimensional scaling
+NREMS: non-REM sleep
+NSD: non sleep deprived (=control)
+pcor: partial correlation
+PCA: principal component analysis
+ph: sleep phenotypes
+QTL: quantitative trait locus
+RDF: resource description framework
+REMS: rapid-eye-movement sleep
+RI: recombinant inbred
+SCN: suprachiasmatic nucleus
+SD: sleep deprived
+SIM: simple interval mapping
+SVM: support vector machine
+TDW: theta-dominated wakefulness
+TPF: theta peak frequency
