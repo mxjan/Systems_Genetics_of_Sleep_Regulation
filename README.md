@@ -20,6 +20,8 @@ Data-mining associated [website](https://bxd.vital-it.ch/#/)
 
 * **Maxime Jan** - maxime.jan@unil.ch
 * **Nastassia Gobet** - nastassia.gobet@unil.ch
+* **Paul Franken** - paul.franken@unil.ch
+* **Ioannis Xenarios** - Ioannis.Xenarios@unil.ch
 
 # Branches
 
